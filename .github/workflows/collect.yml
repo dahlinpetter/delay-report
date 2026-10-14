@@ -1,0 +1,33 @@
+name: Collect train delays
+on:
+  schedule:
+    # every 10 minutes, 04:00-18:59 UTC (= 06-20 summer / 05-19 winter Swedish time), Mon-Fri
+    - cron: "*/10 4-18 * * 1-5"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: collect
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch delays from Trafiklab
+        env:
+          TRAFIKLAB_KEY: ${{ secrets.TRAFIKLAB_KEY }}
+        run: |
+          python collect.py
+          python export_delays.py
+      - name: Save data
+        run: |
+          git config user.name "delay-bot"
+          git config user.email "delay-bot@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet || git commit -m "data: $(date -u +%FT%TZ)"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && break || sleep 5; done

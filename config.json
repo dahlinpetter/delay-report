@@ -1,0 +1,74 @@
+{
+  "_comment": "Edit this file to add commuters. Station names are looked up automatically via Trafiklab; put an explicit id in station_ids if the lookup picks the wrong stop.",
+  "stations": [
+    "Lund C",
+    "Malmö C",
+    "Triangeln",
+    "Hyllie",
+    "Kastrup",
+    "Ørestad",
+    "København H"
+  ],
+  "station_ids": {},
+  "train_filter": {
+    "agency_contains": [
+      "Öresundståg",
+      "Oresundstag",
+      "Skånetrafiken",
+      "DSB"
+    ],
+    "transport_mode": "TRAIN"
+  },
+  "compensation_rules": {
+    "_source": "Skånetrafiken/Öresundståg terms + Lag (2015:953): 50% at 20-39 min, 75% at 40-59 min, 100% at 60+ min delay at final destination",
+    "tiers": [
+      {
+        "min_minutes": 60,
+        "percent": 100
+      },
+      {
+        "min_minutes": 40,
+        "percent": 75
+      },
+      {
+        "min_minutes": 20,
+        "percent": 50
+      }
+    ]
+  },
+  "users": [
+    {
+      "name": "Petter",
+      "email": "",
+      "home_station": "Malmö C",
+      "work_station": "København H",
+      "outbound": {
+        "window": [
+          "07:30",
+          "08:30"
+        ],
+        "usual_departure": "07:50"
+      },
+      "return": {
+        "window": [
+          "16:30",
+          "17:30"
+        ],
+        "usual_departure": "17:00"
+      },
+      "workdays": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "ticket": {
+        "type": "30-day",
+        "price_sek": 2000,
+        "trips_factor": 40,
+        "_note": "Value of one trip = price_sek / trips_factor. For a single ticket set type 'single' and trip_price_sek instead. VERIFY the factor Skånetrafiken uses for period tickets."
+      }
+    }
+  ]
+}
