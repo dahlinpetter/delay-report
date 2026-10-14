@@ -13,6 +13,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime
@@ -52,7 +53,13 @@ def http_get_json(url, retries=2):
         except Exception as e:  # network hiccups: retry
             last = e
             time.sleep(2 * (attempt + 1))
-    raise RuntimeError(f"GET failed: {redact(url)}: {last}")
+    detail = ""
+    if isinstance(last, urllib.error.HTTPError):
+        try:
+            detail = " " + last.read().decode("utf-8", "replace")[:200]
+        except Exception:
+            pass
+    raise RuntimeError(f"GET failed: {redact(url)}: {last}{detail}")
 
 
 def redact(url):
@@ -121,9 +128,10 @@ def record(store, station_name, kind, call, now_iso):
 
 
 def run(fetch=http_get_json, now=None):
-    key = os.environ.get("TRAFIKLAB_KEY")
+    key = (os.environ.get("TRAFIKLAB_KEY") or "").strip()
     if not key:
-        sys.exit("TRAFIKLAB_KEY is not set")
+        print("::error::The TRAFIKLAB_KEY secret is missing or empty. Add it under Settings > Secrets and variables > Actions.")
+        sys.exit(1)
     config = load_json(ROOT / "config.json", {})
     cache = load_json(STATIONS_CACHE, {})
     now = now or datetime.now(TZ)
@@ -135,19 +143,29 @@ def run(fetch=http_get_json, now=None):
     flt = config.get("train_filter", {})
     n_new = 0
 
+    errors = []
     for name in stations:
-        area = resolve_station(name, key, config, cache, fetch)
-        for kind, endpoint, field in (("dep", "departures", "departures"), ("arr", "arrivals", "arrivals")):
-            res = fetch(f"{API}/{endpoint}/{area}?key={key}")
-            for call in res.get(field, []):
-                if is_wanted(call, flt):
-                    record(store, name, kind, call, now_iso)
-                    n_new += 1
+        try:
+            area = resolve_station(name, key, config, cache, fetch)
+            for kind, endpoint, field in (("dep", "departures", "departures"), ("arr", "arrivals", "arrivals")):
+                res = fetch(f"{API}/{endpoint}/{area}?key={key}")
+                for call in res.get(field, []):
+                    if is_wanted(call, flt):
+                        record(store, name, kind, call, now_iso)
+                        n_new += 1
+        except Exception as e:
+            msg = f"{name}: {e}"
+            errors.append(msg)
+            print(f"::error::{msg}")
 
     save_json(obs_path, store)
     save_json(STATIONS_CACHE, cache)
     realtime = sum(1 for r in store.values() if r["is_realtime"])
-    print(f"{now_iso}: stored {n_new} observations; month file has {len(store)} rows ({realtime} with realtime data)")
+    summary = f"{now_iso}: stored {n_new} observations; month file has {len(store)} rows ({realtime} with realtime data)"
+    print(summary)
+    print(f"::notice::{summary}. Stations: " + "; ".join(f"{k} -> {v['matched_name']} ({v['id']})" for k, v in cache.items()))
+    if errors and len(errors) == len(stations):
+        sys.exit(1)
 
 
 if __name__ == "__main__":
