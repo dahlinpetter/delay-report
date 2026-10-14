@@ -195,6 +195,22 @@ def main():
 
     stop_map, train_trips, static_day = None, None, None
     errors = []
+    # Ask KoDa to prepare every archive first, so they are built in parallel.
+    if not a.probe:
+        n = 0
+        d0 = start
+        while d0 <= end:
+            if d0.isoweekday() <= 5 and d0.isoformat() not in state["done"]:
+                for h in hours:
+                    try:
+                        req = urllib.request.Request(f"{BASE}/gtfs-rt/{OPERATOR}/TripUpdates?date={d0}&hour={h:02d}&key={key}", method="HEAD")
+                        urllib.request.urlopen(req, timeout=20).close()
+                    except Exception:
+                        pass
+                    n += 1
+            d0 += timedelta(days=1)
+        note(f"Requested {n} archives up front; waiting 10 minutes for preparation")
+        time.sleep(600)
     day = start
     while day <= end:
         if day.isoweekday() <= 5 and day.isoformat() not in state["done"]:
