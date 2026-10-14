@@ -1,0 +1,35 @@
+name: Rebuild history from KoDa
+on:
+  workflow_dispatch:
+    inputs:
+      start: {description: "First day (YYYY-MM-DD)", required: true}
+      end: {description: "Last day (YYYY-MM-DD)", required: false}
+      hours: {description: "UTC hours to fetch", default: "4-9,13-19"}
+      probe: {description: "Probe only (one day, print what the archive contains)", type: boolean, default: false}
+permissions:
+  contents: write
+concurrency:
+  group: koda
+jobs:
+  koda:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install gtfs-realtime-bindings==1.0.0 protobuf && sudo apt-get install -y p7zip-full >/dev/null
+      - name: Download and parse
+        env:
+          KODA_KEY: ${{ secrets.KODA_KEY }}
+        run: |
+          python tools/koda_backfill.py --start "${{ inputs.start }}" ${{ inputs.end && format('--end {0}', inputs.end) || '' }} --hours "${{ inputs.hours }}" ${{ inputs.probe && '--probe' || '' }}
+      - name: Save history
+        if: ${{ !inputs.probe }}
+        run: |
+          git config user.name "delay-bot"
+          git config user.email "delay-bot@users.noreply.github.com"
+          git add data/history.json data/history_progress.json
+          git diff --cached --quiet || git commit -m "history: KoDa backfill"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && break || sleep 5; done
