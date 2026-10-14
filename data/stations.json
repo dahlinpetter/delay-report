@@ -1,0 +1,32 @@
+{
+ "Hyllie": {
+  "area_type": "RIKSHALLPLATS",
+  "id": "740001586",
+  "matched_name": "Malmö Hyllie station"
+ },
+ "Kastrup": {
+  "area_type": "META_STOP",
+  "id": "860050858",
+  "matched_name": "Kastrup"
+ },
+ "Lund C": {
+  "area_type": "RIKSHALLPLATS",
+  "id": "740000120",
+  "matched_name": "Lund Centralstation"
+ },
+ "Malmö C": {
+  "area_type": "RIKSHALLPLATS",
+  "id": "740000003",
+  "matched_name": "Malmö Centralstation"
+ },
+ "Triangeln": {
+  "area_type": "RIKSHALLPLATS",
+  "id": "740001587",
+  "matched_name": "Malmö Triangeln station"
+ },
+ "Ørestad": {
+  "area_type": "RIKSHALLPLATS",
+  "id": "860000856",
+  "matched_name": "Örestad"
+ }
+}
