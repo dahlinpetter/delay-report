@@ -9,15 +9,13 @@
     "Ørestad",
     "København H"
   ],
-  "station_ids": {},
+  "station_ids": {
+    "København H": "860000626"
+  },
   "train_filter": {
-    "agency_contains": [
-      "Öresundståg",
-      "Oresundstag",
-      "Skånetrafiken",
-      "DSB"
-    ],
-    "transport_mode": "TRAIN"
+    "agency_contains": [],
+    "transport_mode": "TRAIN",
+    "_note": "All trains (Öresundståg and Pågatåg) are kept; both are covered by Skånetrafiken's delay compensation."
   },
   "compensation_rules": {
     "_source": "Skånetrafiken/Öresundståg terms + Lag (2015:953): 50% at 20-39 min, 75% at 40-59 min, 100% at 60+ min delay at final destination",
