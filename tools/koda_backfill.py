@@ -194,6 +194,7 @@ def main():
             trains[(t["d"].replace("-", ""), f"old-{t['d']}-{t['n']}-{t['s'][0][1]}")] = {"_doc": t}
 
     stop_map, train_trips, static_day = None, None, None
+    errors = []
     day = start
     while day <= end:
         if day.isoweekday() <= 5 and day.isoformat() not in state["done"]:
@@ -202,28 +203,42 @@ def main():
                 break
             # refresh static data weekly (trip ids change with timetables)
             if static_day is None or (day - static_day).days >= 7:
-                stop_map, train_trips = load_static(key, day.isoformat(), work)
-                static_day = day
+                for back in range(0, 4):
+                    try:
+                        stop_map, train_trips = load_static(key, (day - timedelta(days=back)).isoformat(), work)
+                        static_day = day
+                        break
+                    except Exception as e:
+                        print(f"::warning::static {day - timedelta(days=back)}: {str(e)[:200]}", flush=True)
+                if stop_map is None:
+                    print(f"::error::No static timetable near {day}; skipping day", flush=True)
+                    day += timedelta(days=1); continue
                 if a.probe:
                     note(f"Static {day}: {len(stop_map)} station stop ids -> {sorted(set(stop_map.values()))}; {len(train_trips)} train trips")
             day_trains = {}
             for h in hours:
                 arch = work / f"rt_{day}_{h}.bin"
-                if not get(f"{BASE}/gtfs-rt/{OPERATOR}/TripUpdates?date={day}&hour={h:02d}", key, dest=arch):
-                    note(f"No realtime archive for {day} {h:02d}h"); continue
-                size = arch.stat().st_size
-                d = work / f"rt_{day}_{h}"; d.mkdir(exist_ok=True)
-                extract(arch, d)
-                files = [p for p in d.rglob("*") if p.is_file()]
-                if a.probe:
-                    note(f"{day} {h:02d}h UTC: archive {size/1e6:.1f} MB, {len(files)} files, e.g. {files[0].relative_to(d) if files else '-'}")
-                parse_hour(files, stop_map, train_trips, day_trains, a.step)
-                shutil.rmtree(d, ignore_errors=True); arch.unlink(missing_ok=True)
+                d = work / f"rt_{day}_{h}"
+                try:
+                    if not get(f"{BASE}/gtfs-rt/{OPERATOR}/TripUpdates?date={day}&hour={h:02d}", key, dest=arch, tries=20, wait=30):
+                        print(f"::warning::No realtime archive for {day} {h:02d}h", flush=True); continue
+                    size = arch.stat().st_size
+                    d.mkdir(exist_ok=True)
+                    extract(arch, d)
+                    files = [p for p in d.rglob("*") if p.is_file()]
+                    if a.probe:
+                        note(f"{day} {h:02d}h UTC: archive {size/1e6:.1f} MB, {len(files)} files, e.g. {files[0].relative_to(d) if files else '-'}")
+                    parse_hour(files, stop_map, train_trips, day_trains, a.step)
+                except Exception as e:
+                    errors.append(f"{day} {h:02d}h: {str(e)[:200]}")
+                    print(f"::warning::{errors[-1]}", flush=True)
+                finally:
+                    shutil.rmtree(d, ignore_errors=True); arch.unlink(missing_ok=True)
             trains.update(day_trains)
             state["done"].append(day.isoformat())
             if not a.probe:
                 save(trains, state)
-            print(f"{day}: {len(day_trains)} trains", flush=True)
+            print(f"{day}: {len(day_trains)} trains ({int((time.time()-t_start)/60)} min elapsed)", flush=True)
         day += timedelta(days=1)
     if a.probe:
         doc = to_doc({k: v for k, v in trains.items() if "_doc" not in v})
@@ -231,6 +246,7 @@ def main():
         note(f"Probe parsed {len(doc)} trains. Sample: {json.dumps(sample, ensure_ascii=False)[:800]}")
     else:
         save(trains, state)
+        note(f"Done {len(state['done'])} days, {sum(1 for v in trains.values())} trains, {len(errors)} skipped hours, {int((time.time()-t_start)/60)} min")
     shutil.rmtree(work, ignore_errors=True)
 
 
@@ -247,4 +263,10 @@ def save(trains, state):
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        import traceback
+        print("::error::" + (traceback.format_exc().strip().splitlines()[-1])[:400], flush=True)
+        print(traceback.format_exc(), flush=True)
+        sys.exit(1)
