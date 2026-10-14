@@ -1,0 +1,14 @@
+name: Probe Trafiklab data
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - env:
+          TRAFIKLAB_KEY: ${{ secrets.TRAFIKLAB_KEY }}
+        run: python tools/probe.py
