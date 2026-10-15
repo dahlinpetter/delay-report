@@ -246,6 +246,10 @@ def main():
             state["done"].append(day.isoformat())
             if not a.probe:
                 save(trains, state)
+                if len(state["done"]) % 3 == 0 and os.environ.get("GITHUB_ACTIONS"):
+                    subprocess.run("git config user.name delay-bot && git config user.email delay-bot@users.noreply.github.com && "
+                                   "git add data/history.json data/history_progress.json && git commit -qm 'history: progress' && "
+                                   "git pull -q --rebase && git push -q", shell=True)
             print(f"{day}: {len(day_trains)} trains ({int((time.time()-t_start)/60)} min elapsed)", flush=True)
         day += timedelta(days=1)
     if a.probe:
