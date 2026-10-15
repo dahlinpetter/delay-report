@@ -210,6 +210,14 @@ def main():
                     static_day = day
                 except Exception as e:
                     if stop_map is None:
+                        for back in range(1, 15):
+                            try:
+                                stop_map, train_trips = load_static(key, (day - timedelta(days=back)).isoformat(), work, quick=True)
+                                print(f"::warning::using timetable from {day - timedelta(days=back)} for {day}", flush=True)
+                                break
+                            except Exception:
+                                continue
+                    if stop_map is None:
                         print(f"::warning::static {day}: {str(e)[:160]}; skipping day", flush=True)
                         day += timedelta(days=1); continue
                     print(f"::warning::static {day} not ready; reusing previous timetable", flush=True)
