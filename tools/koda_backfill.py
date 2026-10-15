@@ -7,6 +7,7 @@ data/history.json in the same format as data/delays.json.
     KODA_KEY=... python tools/koda_backfill.py --start 2026-04-15 --end 2026-10-14 --hours 6-9,15-19
     KODA_KEY=... python tools/koda_backfill.py --probe --start 2026-10-13
 """
+from concurrent.futures import ThreadPoolExecutor
 import argparse, csv, io, json, os, shutil, subprocess, sys, tempfile, time, urllib.error, urllib.request, zipfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -72,7 +73,7 @@ def extract(archive, into):
 
 def load_static(key, day, work):
     arch = work / "static.bin"
-    if not get(f"{BASE}/gtfs-static/{OPERATOR}?date={day}", key, dest=arch):
+    if not get(f"{BASE}/gtfs-static/{OPERATOR}?date={day}", key, dest=arch, tries=20, wait=30):
         raise RuntimeError(f"No static GTFS for {day}")
     d = work / "static"; d.mkdir(exist_ok=True)
     extract(arch, d)
@@ -177,7 +178,7 @@ def main():
     ap.add_argument("--hours", default="6-9,15-19", help="UTC hours to download")
     ap.add_argument("--step", type=int, default=4, help="use every Nth snapshot")
     ap.add_argument("--probe", action="store_true")
-    ap.add_argument("--max-minutes", type=int, default=320)
+    ap.add_argument("--max-minutes", type=int, default=300)
     a = ap.parse_args()
     key = os.environ["KODA_KEY"].strip()
     t_start = time.time()
@@ -195,22 +196,6 @@ def main():
 
     stop_map, train_trips, static_day = None, None, None
     errors = []
-    # Ask KoDa to prepare every archive first, so they are built in parallel.
-    if not a.probe:
-        n = 0
-        d0 = start
-        while d0 <= end:
-            if d0.isoweekday() <= 5 and d0.isoformat() not in state["done"]:
-                for h in hours:
-                    try:
-                        req = urllib.request.Request(f"{BASE}/gtfs-rt/{OPERATOR}/TripUpdates?date={d0}&hour={h:02d}&key={key}", method="HEAD")
-                        urllib.request.urlopen(req, timeout=20).close()
-                    except Exception:
-                        pass
-                    n += 1
-            d0 += timedelta(days=1)
-        note(f"Requested {n} archives up front; waiting 10 minutes for preparation")
-        time.sleep(600)
     day = start
     while day <= end:
         if day.isoweekday() <= 5 and day.isoformat() not in state["done"]:
@@ -231,25 +216,32 @@ def main():
                     day += timedelta(days=1); continue
                 if a.probe:
                     note(f"Static {day}: {len(stop_map)} station stop ids -> {sorted(set(stop_map.values()))}; {len(train_trips)} train trips")
-            day_trains = {}
-            for h in hours:
+            def one_hour(h, day=day, stop_map=stop_map, train_trips=train_trips):
                 arch = work / f"rt_{day}_{h}.bin"
                 d = work / f"rt_{day}_{h}"
+                part = {}
                 try:
-                    if not get(f"{BASE}/gtfs-rt/{OPERATOR}/TripUpdates?date={day}&hour={h:02d}", key, dest=arch, tries=20, wait=30):
-                        print(f"::warning::No realtime archive for {day} {h:02d}h", flush=True); continue
-                    size = arch.stat().st_size
+                    if not get(f"{BASE}/gtfs-rt/{OPERATOR}/TripUpdates?date={day}&hour={h:02d}", key, dest=arch, tries=24, wait=30):
+                        return part, f"{day} {h:02d}h: no archive"
                     d.mkdir(exist_ok=True)
                     extract(arch, d)
                     files = [p for p in d.rglob("*") if p.is_file()]
-                    if a.probe:
-                        note(f"{day} {h:02d}h UTC: archive {size/1e6:.1f} MB, {len(files)} files, e.g. {files[0].relative_to(d) if files else '-'}")
-                    parse_hour(files, stop_map, train_trips, day_trains, a.step)
+                    parse_hour(files, stop_map, train_trips, part, a.step)
+                    return part, None
                 except Exception as e:
-                    errors.append(f"{day} {h:02d}h: {str(e)[:200]}")
-                    print(f"::warning::{errors[-1]}", flush=True)
+                    return part, f"{day} {h:02d}h: {str(e)[:160]}"
                 finally:
                     shutil.rmtree(d, ignore_errors=True); arch.unlink(missing_ok=True)
+            day_trains = {}
+            with ThreadPoolExecutor(max_workers=len(hours)) as ex:
+                for part, err in ex.map(one_hour, hours):
+                    if err:
+                        errors.append(err); print(f"::warning::{err}", flush=True)
+                    for k, t in part.items():
+                        cur = day_trains.setdefault(k, {"n": t["n"], "c": 0, "stops": {}})
+                        cur["c"] |= t["c"]
+                        for lab, st in t["stops"].items():
+                            cur["stops"].setdefault(lab, {}).update(st)
             trains.update(day_trains)
             state["done"].append(day.isoformat())
             if not a.probe:
