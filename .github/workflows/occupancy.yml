@@ -1,0 +1,32 @@
+name: Occupancy from KoDa
+on:
+  workflow_dispatch:
+    inputs:
+      start: {description: "First day", required: true}
+      end: {description: "Last day", required: false}
+      hours: {description: "UTC hours", default: "4-8,13-17"}
+      probe: {description: "Probe only", type: boolean, default: false}
+permissions:
+  contents: write
+concurrency:
+  group: occupancy
+jobs:
+  occ:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install gtfs-realtime-bindings==1.0.0 protobuf && sudo apt-get install -y p7zip-full >/dev/null
+      - env:
+          KODA_KEY: ${{ secrets.KODA_KEY }}
+        run: python tools/koda_occupancy.py --start "${{ inputs.start }}" ${{ inputs.end && format('--end {0}', inputs.end) || '' }} --hours "${{ inputs.hours }}" ${{ inputs.probe && '--probe' || '' }}
+      - if: ${{ always() && !inputs.probe }}
+        run: |
+          git config user.name "delay-bot"
+          git config user.email "delay-bot@users.noreply.github.com"
+          git add data/occupancy.json 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "occupancy: KoDa"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && break || sleep 5; done
