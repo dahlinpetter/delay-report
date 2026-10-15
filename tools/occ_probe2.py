@@ -31,10 +31,14 @@ for feed in ("TripUpdates",):
             if e.HasField("trip_update"):
                 tu = e.trip_update; train = tu.trip.trip_id in trip_no
                 for su in tu.stop_time_update:
+                    has = False
                     try:
-                        has = su.HasField("departure_occupancy_status")
+                        from google.protobuf.unknown_fields import UnknownFieldSet
+                        for uf in UnknownFieldSet(su):
+                            c[f"unknown_field_{uf.field_number}_" + ("train" if train else "other")] += 1
+                            if uf.field_number == 7 and len(ex) < 8: ex.append(("stu7", train, uf.data))
                     except Exception as er:
-                        c["no_field_in_bindings"] += 1; has = False
+                        c["unknown_err"] += 1
                     if has:
                         c["stu_dep_occ_" + ("train" if train else "other")] += 1
                         if len(ex) < 6: ex.append(("tu", train, su.departure_occupancy_status))
