@@ -8,10 +8,13 @@ from koda_occupancy import load_static
 from google.transit import gtfs_realtime_pb2
 key = os.environ["KODA_KEY"].strip(); work = Path(tempfile.mkdtemp()); day = "2026-10-13"
 stop_map, trip_no, sched = load_static(key, day, work)
-for feed in ("VehiclePositions", "TripUpdates"):
+for feed in ("TripUpdates",):
     arch = work / f"{feed}.bin"; d = work / feed; d.mkdir()
     get(f"{BASE}/gtfs-rt/{OPERATOR}/{feed}?date={day}&hour=06", key, dest=arch, tries=24, wait=30)
-    extract(arch, d)
+    try:
+        extract(arch, d)
+    except Exception as er:
+        note(f"{feed}: extract failed {er}"); continue
     files = sorted(p for p in d.rglob("*") if p.is_file())[::15]
     c = Counter(); ex = []
     for p in files:
@@ -28,7 +31,11 @@ for feed in ("VehiclePositions", "TripUpdates"):
             if e.HasField("trip_update"):
                 tu = e.trip_update; train = tu.trip.trip_id in trip_no
                 for su in tu.stop_time_update:
-                    if su.HasField("departure_occupancy_status"):
+                    try:
+                        has = su.HasField("departure_occupancy_status")
+                    except Exception as er:
+                        c["no_field_in_bindings"] += 1; has = False
+                    if has:
                         c["stu_dep_occ_" + ("train" if train else "other")] += 1
                         if len(ex) < 6: ex.append(("tu", train, su.departure_occupancy_status))
                 if tu.HasField("vehicle"):
