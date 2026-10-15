@@ -11,7 +11,7 @@ from openpyxl.comments import Comment
 
 HOME, WORK = "Malmö C", "København H"
 OUT_WIN, RET_WIN = ("07:30", "08:30"), ("16:30", "17:30")
-PRICE, FACTOR = 2000, 40
+PRICE, FACTOR = 2000, 20
 
 F = "Arial"
 BOLD = Font(name=F, bold=True)
@@ -98,7 +98,7 @@ def main(src, dst):
         ("Leave for work between", f"{OUT_WIN[0]}–{OUT_WIN[1]}", "Train closest to the middle of the window is counted"),
         ("Leave work between", f"{RET_WIN[0]}–{RET_WIN[1]}", "Train closest to the middle of the window is counted"),
         ("30-day ticket price (kr)", PRICE, "Assumed, edit to your real price"),
-        ("Trips per 30-day ticket", FACTOR, "Assumed divisor, verify with Skånetrafiken"),
+        ("Trips per 30-day ticket", FACTOR, "Skånetrafiken: one trip = 1/20 of a 30-day ticket (decision Jan 2023, replaced 1/44). skane.se/namndshandlingar/8732280"),
         ("Value of one trip (kr)", "=B8/B9", "Formula"),
         ("Level 1: minutes late from", 20, "Skånetrafiken/Öresundståg terms; Lag 2015:953"),
         ("Level 1: refund", 0.5, ""),
@@ -182,6 +182,31 @@ def main(src, dst):
         c.border = Border(top=Side(style="thin"))
     M.cell(row=tr, column=7).number_format = "#,##0"
 
+    # ---------- All rush-hour trains ----------
+    R2 = wb.create_sheet("All rush-hour trains")
+    header(R2, 1, ["Date", "Weekday", "Direction", "From", "To", "Planned departure", "Planned arrival", "Actual arrival", "Minutes late", "Cancelled"], [12, 10, 11, 13, 14, 12, 12, 12, 11, 10])
+    by_day2 = {}
+    for t in doc["trains"]:
+        by_day2.setdefault(t["d"], []).append(t)
+    rr = 2
+    for dd in sorted(by_day2):
+        dt = date.fromisoformat(dd)
+        if dt.isoweekday() > 5:
+            continue
+        for leg, a2, b2, w in (("To work", HOME, WORK, ("07:00", "09:00")), ("Home", WORK, HOME, ("16:00", "18:00"))):
+            for j in journeys(by_day2, doc["stops"], dd, a2, b2):
+                if m(w[0]) <= j["dep"] <= m(w[1]):
+                    vals = [dt, dt.strftime("%a"), leg, a2, b2, hm(j["dep"]), hm(j["arr"]), hm(j["arr"] + j["eff"]), int(j["eff"]), "Yes" if j["cancelled"] else ""]
+                    for ci, v in enumerate(vals, 1):
+                        R2.cell(row=rr, column=ci, value=v).font = NORM
+                    R2.cell(row=rr, column=1).number_format = "yyyy-mm-dd"
+                    if j["eff"] >= 20:
+                        for ci in range(1, 11):
+                            R2.cell(row=rr, column=ci).fill = PatternFill("solid", fgColor="FBE3D6")
+                    rr += 1
+    R2.freeze_panes = "A2"; R2.auto_filter.ref = f"A1:J{rr - 1}"
+    RL = f"'All rush-hour trains'!$I$2:$I${rr - 1}"
+
     # ---------- Summary ----------
     S = wb.create_sheet("Summary", 0)
     S.column_dimensions["A"].width = 44; S.column_dimensions["B"].width = 18; S.column_dimensions["C"].width = 50
@@ -217,13 +242,17 @@ def main(src, dst):
                     ctx_tot += 1; ctx_late += j["eff"] >= 20
     S.cell(row=16, column=1, value="Context: all trains in the rush hours (07–09 and 16–18)").font = BOLD
     S.cell(row=17, column=1, value="Trains checked").font = NORM
-    c = S.cell(row=17, column=2, value=ctx_tot); c.font = BLUE; c.number_format = "#,##0"
+    c = S.cell(row=17, column=2, value=f"=COUNT({RL})"); c.font = GREEN; c.number_format = "#,##0"
     S.cell(row=18, column=1, value="Trains 20+ minutes late").font = NORM
-    c = S.cell(row=18, column=2, value=ctx_late); c.font = BLUE; c.number_format = "#,##0"
+    c = S.cell(row=18, column=2, value=f'=COUNTIF({RL},">="&{T1})'); c.font = GREEN; c.number_format = "#,##0"
+    S.cell(row=20, column=1, value="Trains 5+ minutes late (what you notice on the platform)").font = NORM
+    c = S.cell(row=20, column=2, value=f'=COUNTIF({RL},">=5")'); c.font = GREEN; c.number_format = "#,##0"
+    S.cell(row=21, column=1, value="Trains 10+ minutes late").font = NORM
+    c = S.cell(row=21, column=2, value=f'=COUNTIF({RL},">=10")'); c.font = GREEN; c.number_format = "#,##0"
     S.cell(row=19, column=1, value="Share 20+ minutes late").font = NORM
     c = S.cell(row=19, column=2, value="=IFERROR(B18/B17,0)"); c.number_format = "0.0%"; c.font = NORM
-    S["C17"] = "Counted from the same Trafiklab history data, both directions"; S["C17"].font = Font(name=F, italic=True, color="587080")
-    S.cell(row=21, column=1, value="Data gaps: about 12% of the hourly history files were missing in Trafiklab's archive, so a few delays may be absent.").font = Font(name=F, italic=True, color="587080")
+    S["C17"] = "Listed on the 'All rush-hour trains' tab"; S["C17"].font = Font(name=F, italic=True, color="587080")
+    S.cell(row=23, column=1, value="Data gaps: about 12% of the hourly history files were missing in Trafiklab's archive, so a few delays may be absent.").font = Font(name=F, italic=True, color="587080")
     if missing:
         S.cell(row=15, column=1, value=f"Trips with no train data in the window: {len(missing)} (not counted)").font = Font(name=F, italic=True, color="587080")
     wb.save(dst)
