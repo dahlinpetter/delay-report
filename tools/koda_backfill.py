@@ -274,7 +274,21 @@ def main():
 def save(trains, state):
     old = [v["_doc"] for v in trains.values() if "_doc" in v]
     new = to_doc({k: v for k, v in trains.items() if "_doc" not in v})
-    merged = {(t["d"], t["n"], t["s"][0][1]): t for t in old + new}
+    last_day = max(state.get("done") or ["9999"])
+    merged = {}
+    for t in old + new:  # same train seen in several archives: keep the larger (observed) delay per stop
+        if t["d"] > last_day:
+            continue
+        k = (t["d"], str(t["n"]), t["s"][0][1])
+        if k not in merged:
+            merged[k] = {**t, "s": [list(x) for x in t["s"]]}
+            continue
+        m = merged[k]; m["c"] |= t["c"]
+        bystop = {x[0]: x for x in m["s"]}
+        for x in t["s"]:
+            if x[0] not in bystop or x[2] > bystop[x[0]][2]:
+                bystop[x[0]] = list(x)
+        m["s"] = sorted(bystop.values(), key=lambda x: x[1])
     doc = {"example": False, "history": True,
            "updated": datetime.now(TZ).strftime("%Y-%m-%dT%H:%M"),
            "stops": ORDER, "trains": sorted(merged.values(), key=lambda t: (t["d"], t["s"][0][1]))}
