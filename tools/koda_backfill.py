@@ -71,9 +71,9 @@ def extract(archive, into):
         subprocess.run(["7z", "x", "-y", f"-o{into}", str(archive)], check=True, stdout=subprocess.DEVNULL)
 
 
-def load_static(key, day, work):
+def load_static(key, day, work, quick=False):
     arch = work / "static.bin"
-    if not get(f"{BASE}/gtfs-static/{OPERATOR}?date={day}", key, dest=arch, tries=20, wait=30):
+    if not get(f"{BASE}/gtfs-static/{OPERATOR}?date={day}", key, dest=arch, tries=4 if quick else 20, wait=30):
         raise RuntimeError(f"No static GTFS for {day}")
     d = work / "static"; d.mkdir(exist_ok=True)
     extract(arch, d)
@@ -204,18 +204,16 @@ def main():
                 break
             # refresh static data weekly (trip ids change with timetables)
             if static_day is None or (day - static_day).days >= 7:
-                for back in range(0, 4):
-                    try:
-                        stop_map, train_trips = load_static(key, (day - timedelta(days=back)).isoformat(), work)
-                        static_day = day
-                        break
-                    except Exception as e:
-                        print(f"::warning::static {day - timedelta(days=back)}: {str(e)[:200]}", flush=True)
-                if stop_map is None:
-                    print(f"::error::No static timetable near {day}; skipping day", flush=True)
-                    day += timedelta(days=1); continue
-                if a.probe:
-                    note(f"Static {day}: {len(stop_map)} station stop ids -> {sorted(set(stop_map.values()))}; {len(train_trips)} train trips")
+                try:
+                    stop_map, tt = load_static(key, day.isoformat(), work, quick=static_day is not None)
+                    train_trips = tt
+                    static_day = day
+                except Exception as e:
+                    if stop_map is None:
+                        print(f"::warning::static {day}: {str(e)[:160]}; skipping day", flush=True)
+                        day += timedelta(days=1); continue
+                    print(f"::warning::static {day} not ready; reusing previous timetable", flush=True)
+                    static_day = day
             def one_hour(h, day=day, stop_map=stop_map, train_trips=train_trips):
                 arch = work / f"rt_{day}_{h}.bin"
                 d = work / f"rt_{day}_{h}"
