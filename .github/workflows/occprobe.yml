@@ -1,0 +1,13 @@
+name: Occupancy probe 2
+on: workflow_dispatch
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install gtfs-realtime-bindings==1.0.0 protobuf && sudo apt-get install -y p7zip-full >/dev/null
+      - env: {KODA_KEY: "${{ secrets.KODA_KEY }}"}
+        run: python tools/occ_probe2.py
