@@ -6,6 +6,7 @@ on:
       end: {description: "Last day (YYYY-MM-DD)", required: false}
       hours: {description: "UTC hours to fetch", default: "4-9,13-19"}
       probe: {description: "Probe only (one day, print what the archive contains)", type: boolean, default: false}
+      extra: {description: "Add these hours to days already done", type: boolean, default: false}
 permissions:
   contents: write
 concurrency:
@@ -24,7 +25,7 @@ jobs:
         env:
           KODA_KEY: ${{ secrets.KODA_KEY }}
         run: |
-          python tools/koda_backfill.py --start "${{ inputs.start }}" ${{ inputs.end && format('--end {0}', inputs.end) || '' }} --hours "${{ inputs.hours }}" ${{ inputs.probe && '--probe' || '' }}
+          python tools/koda_backfill.py --start "${{ inputs.start }}" ${{ inputs.end && format('--end {0}', inputs.end) || '' }} --hours "${{ inputs.hours }}" ${{ inputs.probe && '--probe' || '' }} ${{ inputs.extra && '--extra' || '' }}
       - name: Save history
         if: ${{ always() && !inputs.probe }}
         run: |

@@ -178,6 +178,7 @@ def main():
     ap.add_argument("--hours", default="6-9,15-19", help="UTC hours to download")
     ap.add_argument("--step", type=int, default=4, help="use every Nth snapshot")
     ap.add_argument("--probe", action="store_true")
+    ap.add_argument("--extra", action="store_true", help="add more hours to days already done")
     ap.add_argument("--max-minutes", type=int, default=300)
     a = ap.parse_args()
     key = os.environ["KODA_KEY"].strip()
@@ -188,6 +189,8 @@ def main():
     hours = parse_hours(a.hours)
 
     state = json.loads(STATE.read_text()) if STATE.exists() and not a.probe else {"done": []}
+    done_key = f"done_extra_{a.hours}" if a.extra else "done"
+    state.setdefault(done_key, [])
     trains = {}
     if OUT.exists() and not a.probe:
         prev = json.loads(OUT.read_text())
@@ -198,7 +201,7 @@ def main():
     errors = []
     day = start
     while day <= end:
-        if day.isoweekday() <= 5 and day.isoformat() not in state["done"]:
+        if day.isoweekday() <= 5 and day.isoformat() not in state[done_key]:
             if time.time() - t_start > a.max_minutes * 60:
                 note(f"Time budget used; stopping before {day}. Run again to continue.")
                 break
@@ -249,10 +252,10 @@ def main():
                         for lab, st in t["stops"].items():
                             cur["stops"].setdefault(lab, {}).update(st)
             trains.update(day_trains)
-            state["done"].append(day.isoformat())
+            state[done_key].append(day.isoformat())
             if not a.probe:
                 save(trains, state)
-                if len(state["done"]) % 3 == 0 and os.environ.get("GITHUB_ACTIONS"):
+                if len(state[done_key]) % 3 == 0 and os.environ.get("GITHUB_ACTIONS"):
                     subprocess.run("git config user.name delay-bot && git config user.email delay-bot@users.noreply.github.com && "
                                    "git add data/history.json data/history_progress.json && git commit -qm 'history: progress' && "
                                    "git pull -q --rebase && git push -q", shell=True)
