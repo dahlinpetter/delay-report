@@ -1,0 +1,35 @@
+name: Nightly history (KoDa)
+on:
+  schedule:
+    # 03:20 UTC every day: fetch yesterday's complete delay history
+    - cron: "20 3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: koda
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install gtfs-realtime-bindings==1.0.0 protobuf && sudo apt-get install -y p7zip-full >/dev/null
+      - name: Fetch the last 3 days (missing days only)
+        env:
+          KODA_KEY: ${{ secrets.KODA_KEY }}
+        run: |
+          START=$(date -u -d '3 days ago' +%F); END=$(date -u -d 'yesterday' +%F)
+          python tools/koda_backfill.py --start "$START" --end "$END" --hours 3-21 --max-minutes 45
+          python tools/page_history.py
+      - name: Save
+        if: always()
+        run: |
+          git config user.name "delay-bot"
+          git config user.email "delay-bot@users.noreply.github.com"
+          git add data/history.json data/history_progress.json data/page_history.json 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "history: nightly KoDa"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && break || sleep 5; done
