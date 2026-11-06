@@ -611,10 +611,11 @@ function renderTicket(){
     ${tickets.length?`<details class="hist"><summary>Earlier tickets (${tickets.length})</summary><div class="plist">${tickets.map((t,i)=>({...t,i})).reverse().map(ticketRow).join("")}</div></details>`:""}`;
   renderTiles();
 }
-function openNewTicket(){
+function openNewTicket(add){
   const today=localDate();
-  sheet(`<div class="spread"><h2>New 30-day ticket</h2><button class="linkbtn" type="button" data-sheetx>Close</button></div>
-    <p class="small muted" style="margin:-6px 0 0">Check the details. Change anything that's different this time.</p>
+  sheet(`<div class="spread"><h2>${add?"Add a ticket":"New 30-day ticket"}</h2><button class="linkbtn" type="button" data-sheetx>Close</button></div>
+    <p class="small muted" style="margin:-6px 0 0">${add?"For a ticket you bought but didn't log. It counts in your commuting costs.":"Check the details. Change anything that's different this time."}</p>
+    ${add?`<label class="field"><span>Type</span><select id="ntType"><option value="30">30-day ticket</option><option value="single">Single ticket</option></select></label>`:""}
     <div class="grid2">
       <label class="field"><span>Bought on</span><input type="date" id="ntDate" value="${today}"></label>
       <label class="field"><span>Price (kr)</span><input type="number" inputmode="numeric" id="ntPrice" value="${Number(cfg.price||0)}"></label>
@@ -623,12 +624,16 @@ function openNewTicket(){
       <label class="field"><span>Valid until</span><input type="date" id="ntExp" value="${addDays(today,29)}"></label>
       <label class="field"><span>Ticket or card no.</span><input id="ntNo" value="${esc(cfg.ticketno||"")}" placeholder="Optional"></label>
     </div>
-    <button class="btn wide" type="button" id="ntSave">Save ticket</button>`);
-  $("#ntDate").addEventListener("change",e=>{if(e.target.value)$("#ntExp").value=addDays(e.target.value,29)});
+    <button class="btn wide" type="button" id="ntSave" data-add="${add?1:0}">Save ticket</button>`);
+  $("#ntDate").addEventListener("change",e=>{if(e.target.value&&$("#ntExp"))$("#ntExp").value=addDays(e.target.value,29)});
+  const ty=$("#ntType");if(ty)ty.addEventListener("change",()=>{const single=ty.value==="single";$("#ntExp").closest(".field").style.visibility=single?"hidden":"";if(single)$("#ntPrice").value=""});
 }
 function saveNewTicket(){
-  const date=$("#ntDate").value||localDate(),price=Number($("#ntPrice").value||0),exp=$("#ntExp").value||addDays(date,29);
-  tickets.push({date,price,exp,no:$("#ntNo").value.trim()});store.set("kv-tickets",tickets);
+  const add=$("#ntSave").dataset.add==="1",single=add&&$("#ntType").value==="single";
+  const date=$("#ntDate").value||localDate(),price=Number($("#ntPrice").value||0),exp=single?"":($("#ntExp").value||addDays(date,29));
+  if(!(price>0)){$("#ntPrice").focus();toast("Add the price first.");return}
+  tickets.push({date,price,exp,no:$("#ntNo").value.trim(),kind:single?"single":"30"});tickets.sort((a,b)=>a.date.localeCompare(b.date));store.set("kv-tickets",tickets);
+  if(add&&(single||(cfg.exp&&exp<=cfg.exp))){closeSheet();renderCosts();renderTicket();renderTiles();toast("Ticket added.");return}
   cfg.type="30";cfg.price=price;cfg.exp=exp;cfg.ticketno=$("#ntNo").value.trim();store.set("kv-cfg",cfg);
   closeSheet();fillForm();renderTicket();renderCosts();renderTiles();renderStatus(true);
   if(push&&SERVER)subscribe(push,true).catch(()=>{});
@@ -768,14 +773,14 @@ function renderCosts(){
   el.innerHTML=`<h2 style="margin:0">Commuting costs ${yr}</h2>
     <div class="money"><div><b>${kr(c.spent)}</b><span>kr spent on tickets</span></div><div><b style="color:var(--good)">${kr(c.back)}</b><span>kr in total refunds (${c.nback} claim${c.nback===1?"":"s"}${c.waiting?`, ${c.waiting} waiting`:""})</span></div></div>
     <p class="small" style="margin:0 0 12px">Your commute cost you <b>${kr(Math.max(0,c.spent-c.back))} kr</b> so far this year.</p>
-    <div class="row" style="gap:8px;align-items:end"><label class="field" style="flex:1"><span>Add a ticket purchase (kr)</span><input id="pAmt" type="number" inputmode="numeric" min="1" placeholder="${cfg.type==="30"?kr(cfg.price):"e.g. 120"}"></label><button class="btn small" type="button" id="addPurchase" style="min-height:50px">Add</button></div>
-    ${list.length?`<div class="plist">${list.map(ticketRow).join("")}</div>`:`<p class="small muted" style="margin:10px 0 0">Tickets you log with "I bought a new ticket" show up here.</p>`}
+    <button class="btn ghost wide" type="button" data-addticket>+ Add a ticket</button>
+    ${list.length?`<div class="plist">${list.map(ticketRow).join("")}</div>`:`<p class="small muted" style="margin:10px 0 0">Tickets you save with "I bought a new ticket" or add here show up in this list.</p>`}
     <p class="small muted" style="margin:14px 0 0">Good to keep for your tax return: commuting costs above a yearly threshold may be deductible in Sweden (reseavdrag), and compensation you got back lowers the cost. Check Skatteverket's current rules.</p>`;
 }
 const CHEV='<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>';
-const tEnd=t=>t.exp||(Number(t.price)>=500?addDays(t.date,29):t.date);
+const tEnd=t=>t.kind==="single"?t.date:t.exp||(Number(t.price)>=500?addDays(t.date,29):t.date);
 function ticketRow(t){
-  const thirty=t.exp||Number(t.price)>=500;
+  const thirty=t.kind!=="single"&&(t.exp||Number(t.price)>=500);
   return`<button class="prow" type="button" data-tk="${t.i}"><div><b>${dayLabel(t.date)}</b><span>${thirty?`30-day ticket · to ${dayLabel(tEnd(t))}`:"Ticket purchase"}${t.no?` · ${esc(t.no)}`:""}</span></div><div class="amt">${kr(t.price)} kr</div>${CHEV}</button>`;
 }
 function openTicketDetail(i){
@@ -795,7 +800,6 @@ function saveTicketDetail(i){
   t.price=Number($("#tkPrice").value||0);t.no=$("#tkNo").value.trim();t.date=$("#tkDate").value||t.date;t.exp=$("#tkExp").value||"";
   store.set("kv-tickets",tickets);closeSheet();renderCosts();renderTicket();renderTiles();toast("Ticket updated.");
 }
-function addPurchase(){const v=Number($("#pAmt").value||0);if(!(v>0))return;tickets.push({date:localDate(),price:v});store.set("kv-tickets",tickets);renderCosts();renderTiles()}
 
 // ---------- Delays ----------
 function merge(docs){
@@ -1258,7 +1262,7 @@ document.addEventListener("click",async e=>{
   if(d.review){reviewTrip=d.review;show("delays");return}
   if(d.rleg){relLeg=d.rleg;renderReliable();return}
   if(b.id==="locOn"){askLocation();return}
-  if(b.id==="addPurchase"){addPurchase();return}
+  if(d.addticket!=null){openNewTicket(true);return}
   if(d.delp!=null){tickets.splice(Number(d.delp),1);store.set("kv-tickets",tickets);closeSheet();renderCosts();renderTicket();renderTiles();return}
   if(d.tk!=null){openTicketDetail(Number(d.tk));return}
   if(d.tksave!=null){saveTicketDetail(Number(d.tksave));return}

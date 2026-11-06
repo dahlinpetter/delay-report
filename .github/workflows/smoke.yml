@@ -13,3 +13,6 @@ jobs:
           echo "--- trains to work"; curl -sS "$S/trains?from=Malm%C3%B6%20C&to=K%C3%B8benhavn%20H" | head -c 500; echo
           T=$(TZ=Europe/Stockholm date +%Y-%m-%dT23:30)
           echo "--- trains around $T"; curl -sS "$S/trains?from=K%C3%B8benhavn%20H&to=Malm%C3%B6%20C&time=$T" | head -c 900; echo
+          echo "--- same call again (should come from the shared cache, faster)"; curl -sS -o /dev/null -w '%{time_total}s\n' "$S/trains?from=K%C3%B8benhavn%20H&to=Malm%C3%B6%20C"
+          echo "--- health"; curl -sS "$S/health"; echo
+          echo "--- unknown station handled"; curl -sS "$S/trains?from=Nowhere&to=Malm%C3%B6%20C"; echo

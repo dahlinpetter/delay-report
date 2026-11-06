@@ -62,6 +62,8 @@ async function db(env) {
       env.DB.prepare("CREATE TABLE IF NOT EXISTS asked (uid TEXT, date TEXT, leg TEXT, train TEXT, sched TEXT, at INTEGER)"),
       env.DB.prepare("CREATE TABLE IF NOT EXISTS muted (uid TEXT, date TEXT, PRIMARY KEY (uid, date))"),
       // check-ins waiting for the train to arrive (no location is stored, only which train)
+      // shared cache of Trafiklab answers, so all users share one call per station per minute
+      env.DB.prepare("CREATE TABLE IF NOT EXISTS apicache (k TEXT PRIMARY KEY, at INTEGER, body TEXT)"),
       env.DB.prepare("CREATE TABLE IF NOT EXISTS checkins (uid TEXT, date TEXT, leg TEXT, frm TEXT, too TEXT, sched TEXT, train TEXT, at INTEGER)")
     ]);
     // the link a notification opens; added later, so ignore "duplicate column"
@@ -103,20 +105,29 @@ async function push(env, uid, subJson, title, body, link) {
   return res.status;
 }
 
+// ---------- Trafiklab calls, cached in the database ----------
+// (Cloudflare's own cache doesn't work on workers.dev addresses.) Answers are reused for 60 s,
+// and if Trafiklab refuses (e.g. too many calls) the last answer is used instead.
+async function cachedJson(env, url, ttl = 60) {
+  const d = await db(env), k = url.replace(/key=[^&]+/, "k"), now = Date.now();
+  const row = await d.prepare("SELECT at, body FROM apicache WHERE k=?").bind(k).first();
+  if (row && now - row.at < ttl * 1000) return JSON.parse(row.body);
+  let r = null;
+  try { r = await fetch(url); } catch (_) {}
+  if (!r || !r.ok) return row ? JSON.parse(row.body) : null;
+  const body = await r.text();
+  await d.prepare("INSERT INTO apicache (k, at, body) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET at=excluded.at, body=excluded.body").bind(k, now, body).run();
+  return JSON.parse(body);
+}
+// round a "YYYY-MM-DDTHH:MM" time down to 5 minutes so nearby requests share a call
+const round5 = t => t ? t.slice(0, 14) + String(Math.floor(Number(t.slice(14, 16)) / 5) * 5).padStart(2, "0") : t;
+
 // ---------- live departures ----------
 async function departures(env, from, to, time) {
   const area = STATIONS[from];
   if (!area || !STATIONS[to]) return [];
-  const url = `${API}/departures/${area}${time ? "/" + time : ""}?key=${env.TRAFIKLAB_KEY}`;
-  const cache = caches.default, ck = new Request(url.replace(/key=[^&]+/, "k"));
-  let res = await cache.match(ck);
-  if (!res) {
-    const r = await fetch(url);
-    if (!r.ok) return [];
-    res = new Response(await r.text(), { headers: { "Content-Type": "application/json", "Cache-Control": "max-age=60" } });
-    await cache.put(ck, res.clone());
-  }
-  const data = await res.json();
+  const data = await cachedJson(env, `${API}/departures/${area}${time ? "/" + round5(time) : ""}?key=${env.TRAFIKLAB_KEY}`);
+  if (!data) return [];
   const toDanish = DANISH.has(to), fromDanish = DANISH.has(from);
   return (data.departures || []).filter(dp => {
     const r = dp.route || {}, ag = dp.agency || {};
@@ -238,16 +249,8 @@ async function morningCheck(env) {
 async function arrivals(env, at, time) {
   const area = STATIONS[at];
   if (!area) return [];
-  const url = `${API}/arrivals/${area}${time ? "/" + time : ""}?key=${env.TRAFIKLAB_KEY}`;
-  const cache = caches.default, ck = new Request(url.replace(/key=[^&]+/, "k"));
-  let res = await cache.match(ck);
-  if (!res) {
-    const r = await fetch(url);
-    if (!r.ok) return [];
-    res = new Response(await r.text(), { headers: { "Content-Type": "application/json", "Cache-Control": "max-age=60" } });
-    await cache.put(ck, res.clone());
-  }
-  const data = await res.json();
+  const data = await cachedJson(env, `${API}/arrivals/${area}${time ? "/" + round5(time) : ""}?key=${env.TRAFIKLAB_KEY}`);
+  if (!data) return [];
   return (data.arrivals || []).filter(a => (a.route || {}).transport_mode === "TRAIN").map(a => ({
     train: a.trip?.technical_number ? String(a.trip.technical_number) : "",
     sched: a.scheduled, real: a.realtime || a.scheduled,
@@ -276,7 +279,7 @@ async function watchLate(env) {
       if (nowMin < lo || nowMin > hi + 45) continue; // only around this window
       const asked = (await d.prepare("SELECT train, sched FROM asked WHERE uid=? AND date=? AND leg=?").bind(u.id, lp.date, L.k).all()).results;
       if (asked.length >= 2) continue;
-      const since = fmt(Math.max(lo, nowMin - 40));
+      const since = fmt(Math.floor(Math.max(lo, nowMin - 40) / 10) * 10);
       const list = await departures(env, L.from, L.to, `${lp.date}T${since}`).catch(() => []);
       const t = list.find(x => {
         const sm = toMin(x.sched.slice(11, 16)), rm = toMin(x.real.slice(11, 16));
@@ -366,6 +369,7 @@ async function cleanup(env) {
     d.prepare("DELETE FROM checks WHERE uid NOT IN (SELECT id FROM users)"),
     d.prepare("DELETE FROM checks WHERE kind='ticket' AND date < ?").bind(localParts(now - 7 * 24 * H).date),
     d.prepare("DELETE FROM asked WHERE at < ?").bind(now - 24 * H),
+    d.prepare("DELETE FROM apicache WHERE at < ?").bind(now - H),
     d.prepare("DELETE FROM muted WHERE date < ?").bind(localParts(now).date),
     d.prepare("DELETE FROM checkins WHERE at < ?").bind(now - 6 * H),
     d.prepare("DELETE FROM checkins WHERE uid NOT IN (SELECT id FROM users)")
@@ -474,6 +478,18 @@ export default {
           d.prepare("DELETE FROM users WHERE id=?").bind(id)
         ]);
         return json({ deleted: true });
+      }
+
+      if (p === "/health") {
+        // counts only (no personal data) + a live test of the arrivals data used after check-ins
+        const d = await db(env), n = async q => (await d.prepare(q).first()).n;
+        const t0 = Date.now(), arr = await arrivals(env, "Malmö C", null).catch(e => "error: " + e.message), ms = Date.now() - t0;
+        return json({
+          users: await n("SELECT COUNT(*) n FROM users"), checks: await n("SELECT COUNT(*) n FROM checks"),
+          reminders: await n("SELECT COUNT(*) n FROM reminders"), checkins: await n("SELECT COUNT(*) n FROM checkins"),
+          cached: await n("SELECT COUNT(*) n FROM apicache"),
+          arrivalsSample: Array.isArray(arr) ? arr.slice(0, 2) : arr, arrivalsCount: Array.isArray(arr) ? arr.length : 0, arrivalsMs: ms
+        });
       }
 
       if (p === "/msg") {
