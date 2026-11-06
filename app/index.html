@@ -34,7 +34,7 @@ header .span{position:absolute;left:0;right:0;bottom:0;width:100%;height:40px;z-
 header.dark{color:#fff}
 header.dark .span{opacity:.35}
 .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:23px;letter-spacing:-.02em;line-height:1}
-.logo svg{width:32px;height:32px;flex:none}
+.logo svg.lockup{width:150px;height:auto;flex:none;display:block}
 header{--logo-gap:#e6f6ec}
 .logo i{color:var(--accent);font-style:normal}
 .route{font-size:13px;opacity:.8;text-align:right}
@@ -126,7 +126,7 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px
   <div id="skymedia"></div>
   <svg class="span" viewBox="0 0 400 46" preserveAspectRatio="xMidYMax slice" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M0 38h400"/><path d="M140 4v40M260 4v40M138 4h4M258 4h4"/><path d="M140 8 60 38M140 8 80 38M140 8 100 38M140 8 120 38M140 8l20 30M140 8l40 30M140 8l60 30M260 8l-60 30M260 8l-40 30M260 8l-20 30M260 8l20 30M260 8l40 30M260 8l60 30M260 8l80 30"/><path d="M0 44h400" stroke-width="5"/></svg>
   <div class="hrow">
-    <div class="logo"><svg viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M13 58V30a19 19 0 0 1 38 0v28" stroke-width="4"/><path d="M23 58V30a9 9 0 0 1 18 0v28" stroke-width="4"/><g stroke-width="2.8" opacity=".5"><path d="M10 52h16M10 44h16M10 36h16M38 52h16M38 44h16M38 36h16M13.5 24.5 22.3 27.5M19 15.5l6.6 7.2M32 11v9.6M45 15.5l-6.6 7.2M50.5 24.5 41.7 27.5"/></g><circle cx="32" cy="40" r="4.4" fill="var(--accent)" stroke="none"/></svg><span>backtrack</span></div>
+    <div class="logo"><svg class="lockup" viewBox="0 0 220 74" role="img" aria-label="backtrack"><g fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M37 8H183A29 29 0 0 1 212 37.0" stroke="var(--brand)"/><path d="M206 32.0L212 38.0L218 32.0" stroke="var(--brand)"/><path d="M183 66H37A29 29 0 0 1 8 37.0" stroke="var(--accent)"/><path d="M2 42.0L8 36.0L14 42.0" stroke="var(--accent)"/></g><text x="110" y="45.0" text-anchor="middle" font-family="Manrope, Inter, system-ui, sans-serif" font-weight="700" font-size="25" letter-spacing="-.5" fill="var(--brand)">backtrack</text></svg></div>
     <div class="route" id="routeLabel"></div>
   </div>
 </header>
