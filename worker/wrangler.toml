@@ -1,0 +1,12 @@
+name = "kvitt"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+
+# Every minute: send due reminders and the evening "was your morning train late?" check
+[triggers]
+crons = ["* * * * *"]
+
+# Created automatically on first deploy
+[[d1_databases]]
+binding = "DB"
+database_name = "kvitt"

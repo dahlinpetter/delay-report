@@ -1,0 +1,63 @@
+name: Deploy Kvitt app
+
+on:
+  push:
+    branches: [main]
+    paths: ["app/**", "worker/**", ".github/workflows/app.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: kvitt-app
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Deploy server (Cloudflare Worker)
+        id: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TRAFIKLAB_KEY: ${{ secrets.TRAFIKLAB_KEY }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Cloudflare secrets not set - deploying the app without the server"
+            echo "url=" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          cd worker
+          npm install --no-audit --no-fund wrangler@4 >/dev/null
+          npx wrangler deploy 2>&1 | tee deploy.log
+          printf '%s' "$TRAFIKLAB_KEY" | npx wrangler secret put TRAFIKLAB_KEY
+          url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          echo "Server: $url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Write app config
+        run: |
+          if [ -n "${{ steps.worker.outputs.url }}" ]; then
+            echo "{ \"server\": \"${{ steps.worker.outputs.url }}\" }" > app/config.json
+          else
+            echo '{ "server": null }' > app/config.json
+          fi
+          cat app/config.json
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app
+      - id: pages
+        uses: actions/deploy-pages@v4
