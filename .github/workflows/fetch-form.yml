@@ -1,0 +1,29 @@
+name: Fetch claim form
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/fetch-form.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Skånetrafiken's claim form
+        run: |
+          curl -fsSL -A "Mozilla/5.0" -o app/claim-form.pdf \
+            https://www.skanetrafiken.se/globalassets/dokumentbank/forseningsersattning/blankett_forseningsersattning_tap.pdf
+          file app/claim-form.pdf
+      - name: Commit
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add app/claim-form.pdf
+          git diff --cached --quiet && exit 0
+          git commit -m "Add Skånetrafiken claim form [skip ci]"
+          git push
