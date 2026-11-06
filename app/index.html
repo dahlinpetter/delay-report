@@ -53,6 +53,7 @@ p{margin:0 0 10px}
 .btn.ghost{background:var(--soft);color:var(--ink)}
 .btn.small{padding:8px 14px;font-size:14px;border-radius:12px;min-height:40px}
 .btn.wide{width:100%}
+.btn:disabled{opacity:.45}
 .btn:active,.pick:active,.clock button:active{transform:scale(.97)}
 .linkbtn{border:0;background:none;color:var(--accent);font-weight:600;font-size:14px;padding:6px 0}
 
@@ -124,6 +125,19 @@ input.sw:checked::after{transform:translateX(20px);background:#fff}
 .claimbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
 .claimbar input{width:100px;min-height:40px;padding:8px 10px}
 .paywall{text-align:center;display:grid;gap:10px;justify-items:center}
+.sheetbg{position:fixed;inset:0;z-index:20;background:rgba(3,9,17,.72);display:grid;align-items:end;justify-items:center;animation:fade .15s}
+.sheet{width:100%;max-width:560px;max-height:92vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:24px 24px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom,0px));display:grid;gap:14px}
+.sheet h2{margin:0}
+.ticks{display:grid;gap:10px}
+.tick{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;font-size:14px;line-height:1.4}
+.tick input{width:22px;height:22px;min-height:0;padding:0;margin-top:1px;border-radius:7px;accent-color:var(--action);-webkit-appearance:checkbox;appearance:auto}
+.sigbox{position:relative;background:#f7f9fc;border-radius:16px;height:150px;touch-action:none}
+.sigbox canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:16px}
+.sigbox .line{position:absolute;left:18px;right:18px;bottom:34px;border-bottom:1px dashed #9aa9bb;pointer-events:none}
+.sigbox .hint{position:absolute;left:18px;bottom:12px;font-size:12px;color:#6b7c90;pointer-events:none}
+.sigbox .clear{position:absolute;right:10px;top:8px;color:#2585ea}
+.missing{background:var(--warn-bg);border-radius:14px;padding:12px 14px;font-size:14px}
+@keyframes fade{from{opacity:0}}
 
 details.legal{padding:0}
 details.legal summary{list-style:none;cursor:pointer;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;font-weight:600}
@@ -249,11 +263,34 @@ nav button[aria-selected="true"]{color:var(--accent)}
       </div>
       <div class="grid2" id="expbox">
         <label class="field"><span>Valid until</span><input type="date" id="f-exp"></label>
-        <label class="field"><span>Ticket or card no.</span><input type="text" id="f-ticketno" placeholder="Optional"></label>
       </div>
       <button class="btn ghost wide" id="newTicket" type="button">I bought a new 30-day ticket today</button>
       <p class="small muted" id="ticketLog" style="margin:0"></p>
       <p class="small" id="saved" style="margin:0;min-height:18px;color:var(--good)"></p>
+    </form>
+    <form class="card stack" id="meCard" autocomplete="on">
+      <h3 style="margin:0">Your details for claim forms</h3>
+      <p class="small muted" style="margin:0">Backtrack fills in Skånetrafiken's claim form for you. These details stay on this phone and are only put into the PDF you create.</p>
+      <label class="field"><span>Personnummer</span><input id="m-pnr" data-me="pnr" inputmode="numeric" placeholder="ÅÅÅÅMMDD-XXXX" autocomplete="off"></label>
+      <div class="grid2">
+        <label class="field"><span>First name</span><input data-me="first" autocomplete="given-name"></label>
+        <label class="field"><span>Last name</span><input data-me="last" autocomplete="family-name"></label>
+      </div>
+      <label class="field"><span>Street address</span><input data-me="street" autocomplete="street-address"></label>
+      <div class="grid2">
+        <label class="field"><span>Postcode</span><input data-me="zip" inputmode="numeric" autocomplete="postal-code"></label>
+        <label class="field"><span>City</span><input data-me="city" autocomplete="address-level2"></label>
+      </div>
+      <div class="grid2">
+        <label class="field"><span>Mobile</span><input data-me="phone" type="tel" autocomplete="tel"></label>
+        <label class="field"><span>Email</span><input data-me="email" type="email" autocomplete="email"></label>
+      </div>
+      <div class="grid2">
+        <label class="field"><span>Your ticket number is a</span><select id="m-kind"><option value="app">Ticket ID (app)</option><option value="card">Travel card no.</option></select></label>
+        <label class="field"><span>Number</span><input id="m-ticketno" autocomplete="off" placeholder="Optional"></label>
+      </div>
+      <p class="small" id="meMsg" style="margin:0;min-height:18px"></p>
+      <button class="linkbtn" id="meDelete" type="button" style="justify-self:start">Delete my details from this phone</button>
     </form>
     <div class="card" id="notifCard"></div>
     <div class="card">
@@ -270,7 +307,8 @@ nav button[aria-selected="true"]{color:var(--accent)}
         <h4>Compensation</h4>
         <p>Backtrack shows delays from public traffic data. Only claim compensation for trips you actually made with a valid ticket. Amounts are estimates, and Skånetrafiken assesses every claim. A 30-day ticket is valued at 1/20 of its price per trip. Compensation taken as a discount code is shown with a 50% bonus; check Skånetrafiken's current terms.</p>
         <h4>Privacy</h4>
-        <p>Backtrack has no accounts and never asks for your name, email or phone number. Your commute, ticket details, trips and claims are stored only on this phone.</p>
+        <p>Backtrack has no accounts. Your commute, ticket details, trips and claims are stored only on this phone.</p>
+        <p>If you add your details for claim forms (name, personnummer, address, phone, email), they are stored only on this phone and used to fill in the PDF you create. They are never sent to Backtrack. Your signature is used for that one PDF and not saved.</p>
         <p>If you turn on notifications, Backtrack's server stores your phone's push address and the stations and times it needs for your reminders. Nothing else.</p>
         <ul>
           <li>Night-out reminders are deleted an hour after the train has left.</li>
@@ -299,11 +337,12 @@ const $=s=>document.querySelector(s);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 const STATIONS=["Lund C","Malmö C","Triangeln","Hyllie","Kastrup","Ørestad","København H"];
 const FACTOR=20; // Skånetrafiken values a 30-day ticket at 1/20 of its price per trip
-const DEF={from:"Malmö C",to:"København H",o1:"07:15",o2:"08:30",r1:"15:30",r2:"17:30",type:"30",price:2000,u1:"",u2:"",exp:"",ticketno:"",payout:"money"};
+const DEF={from:"Malmö C",to:"København H",o1:"07:15",o2:"08:30",r1:"15:30",r2:"17:30",type:"30",price:2000,u1:"",u2:"",exp:"",ticketno:"",ticketKind:"app",payout:"money"};
 const VOUCHER_BONUS=1.5; // compensation taken as a discount code is worth 50% more
 let cfg=Object.assign({},DEF,store.get("kv-cfg",{}));
 let took=store.get("kv-took",{});
 let claims=store.get("kv-claims",{});
+let me=store.get("kv-me",{});
 let tickets=store.get("kv-tickets",[]);
 let unlocked=store.get("kv-unlocked",false);
 let period="two",dir="home",openClaim=null,DATA=null,SERVER=null;
@@ -586,10 +625,10 @@ function claimPanel(i){
     ["Ticket type",cfg.type==="single"?"Single ticket":"30-day ticket"],["Compensation as",cfg.payout==="code"?"Discount code (+50%)":"Money to bank account"],["Ticket or card no.",cfg.ticketno||""]].filter(x=>x[1]);
   const all=f.map(([k,v])=>`${k}: ${v}`).join("\n");
   return`<div class="claim">
+    <div class="claimbar" style="margin:8px 0 6px"><button class="btn small" type="button" data-pdf="${i.id}">Fill in claim form</button><button class="btn small ghost" type="button" data-copy="${encodeURIComponent(all)}">Copy all</button></div>
     ${f.map(([k,v])=>`<button class="copyrow" type="button" data-copy="${encodeURIComponent(v)}"><span>${k}</span><b>${esc(v)}</b><i>Copy</i></button>`).join("")}
-    ${cfg.ticketno?"":`<button class="linkbtn" type="button" data-goto="f-ticketno" style="text-align:left;padding-top:10px">+ Add your ticket or card number</button>`}
-    <div class="claimbar"><button class="btn small" type="button" data-copy="${encodeURIComponent(all)}">Copy all</button>
-      <a class="btn small ghost" style="text-decoration:none;display:inline-grid;place-items:center" href="https://www.skanetrafiken.se/kundservice/forseningsersattning/ersattning-vid-forsening/" target="_blank" rel="noopener">Open claim form</a></div>
+    ${cfg.ticketno?"":`<button class="linkbtn" type="button" data-goto="m-ticketno" style="text-align:left;padding-top:10px">+ Add your ticket or card number</button>`}
+    <a class="linkbtn" style="text-decoration:none;padding-top:12px" href="https://www.skanetrafiken.se/kundservice/forseningsersattning/ersattning-vid-forsening/" target="_blank" rel="noopener">Or claim online at Skånetrafiken</a>
     <div class="claimbar">${claimStatus(i)}</div>
     <p class="small muted" style="margin:8px 0 0">Only claim if you were on this train with a valid ticket.</p></div>`;
 }
@@ -600,12 +639,111 @@ function claimStatus(i){
   return`<label class="row small" style="gap:6px">Paid <input type="number" inputmode="numeric" data-amt="${i.id}" value="${Number(c.amt||0)}"> kr</label><button class="linkbtn" type="button" data-reset="${i.id}">Undo</button>`;
 }
 
+// ---------- Claim form (PDF) ----------
+// Personal details and the signature never leave the phone: the PDF is built here.
+let pdfItem=null,sig=null,pdfFile=null;
+const ME_NEED={pnr:"personnummer",first:"first name",last:"last name",street:"street address",zip:"postcode",city:"city"};
+function pnrOk(v){let d=String(v||"").replace(/\D/g,"");if(d.length===12)d=d.slice(2);if(d.length!==10)return false;let sum=0;for(let k=0;k<10;k++){const n=Number(d[k])*(k%2?1:2);sum+=n>9?n-9:n}return sum%10===0}
+function meMissing(){
+  const m=Object.keys(ME_NEED).filter(k=>!String(me[k]||"").trim()).map(k=>ME_NEED[k]);
+  if(me.pnr&&!pnrOk(me.pnr))m.unshift("a valid personnummer");
+  if(cfg.payout==="code"&&!me.email&&!me.phone)m.push("email or mobile (for the discount code)");
+  return m;
+}
+const loadScript=src=>new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error("Couldn't load the form tools. Check your connection."));document.head.appendChild(s)});
+async function pdfTools(){if(!window.PDFLib)await loadScript("vendor/pdf-lib.min.js");if(!window.BacktrackClaimPDF)await loadScript("claimpdf.js")}
+function openPdfSheet(id){
+  const i=analyse().items.find(x=>x.id===id);if(!i||!i.chosen)return;
+  pdfItem=i;pdfFile=null;pdfTools().catch(()=>{});
+  const j=i.chosen,miss=meMissing();
+  const el=document.createElement("div");el.className="sheetbg";el.id="pdfSheet";
+  el.innerHTML=`<div class="sheet" role="dialog" aria-modal="true" aria-label="Claim form">
+    <div class="spread"><h2>Claim form</h2><button class="linkbtn" type="button" data-sheetclose>Close</button></div>
+    <p class="small muted" style="margin:-6px 0 0">${dayLabel(i.day)} · ${esc(i.leg.from)} → ${esc(i.leg.to)} · ${fmt(j.dep)}, ${j.eff} min late</p>
+    ${miss.length?`<div class="missing">To fill in the form, add your ${esc(miss.join(", "))}.<br><button class="linkbtn" type="button" data-medit>Add my details</button></div>`:""}
+    <div class="ticks">
+      <label class="tick"><input type="checkbox" id="pTrue"><span>The details are true and I was on this train with a valid ticket. I know compensation can be refused and a police report made if details are wrong.</span></label>
+      <label class="tick"><input type="checkbox" id="pTerms"><span>I've read and accept <a href="https://www.skanetrafiken.se/sa-reser-du-med-oss/villkor/villkor-for-ersattning-vid-forsening/" target="_blank" rel="noopener" style="color:var(--accent)">Skånetrafiken's terms</a> and that they process my personal data.</span></label>
+    </div>
+    <div><p class="small muted" style="margin:0 0 8px">Sign with your finger</p>
+      <div class="sigbox"><canvas id="sigPad"></canvas><div class="line"></div><span class="hint">Underskrift</span><button class="linkbtn clear" type="button" data-sigclear>Clear</button></div></div>
+    <div id="pdfActions" class="stack" style="gap:10px">
+      <button class="btn wide" type="button" data-makepdf="sign"${miss.length?" disabled":""}>Create signed PDF</button>
+      <button class="btn ghost wide" type="button" data-makepdf="paper"${miss.length?" disabled":""}>Create PDF, I'll sign on paper</button>
+    </div>
+    <p class="small" id="pdfMsg" style="margin:0;min-height:18px"></p>
+    <p class="small muted" style="margin:0">Print it, fold it along the lines so it becomes its own envelope, add a stamp and post it. Skånetrafiken's address is already on it. Your signature is only used for this PDF and isn't saved.</p>
+  </div>`;
+  el.addEventListener("click",e=>{if(e.target===el)closePdfSheet()});
+  document.body.appendChild(el);setupSig();
+}
+function closePdfSheet(){$("#pdfSheet")?.remove();sig=null;pdfFile=null}
+function setupSig(){
+  const c=$("#sigPad"),ctx=c.getContext("2d"),r=c.getBoundingClientRect(),dpr=Math.max(2,window.devicePixelRatio||1);
+  c.width=Math.round(r.width*dpr);c.height=Math.round(r.height*dpr);ctx.scale(dpr,dpr);
+  ctx.lineWidth=2.4;ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle=ctx.fillStyle="#0d1a59";
+  sig={c,ctx,drawn:false,box:[1e9,1e9,-1e9,-1e9]};
+  let last=null;
+  const pt=e=>{const b=c.getBoundingClientRect(),p=[e.clientX-b.left,e.clientY-b.top],x=sig.box;x[0]=Math.min(x[0],p[0]);x[1]=Math.min(x[1],p[1]);x[2]=Math.max(x[2],p[0]);x[3]=Math.max(x[3],p[1]);return p};
+  c.addEventListener("pointerdown",e=>{e.preventDefault();c.setPointerCapture(e.pointerId);last=pt(e);ctx.beginPath();ctx.arc(last[0],last[1],1.2,0,7);ctx.fill();sig.drawn=true});
+  c.addEventListener("pointermove",e=>{if(!last)return;const p=pt(e),m=[(last[0]+p[0])/2,(last[1]+p[1])/2];ctx.beginPath();ctx.moveTo(last[0],last[1]);ctx.quadraticCurveTo(last[0],last[1],m[0],m[1]);ctx.lineTo(p[0],p[1]);ctx.stroke();last=p});
+  const end=()=>{last=null};c.addEventListener("pointerup",end);c.addEventListener("pointercancel",end);
+}
+function sigPng(){
+  const{c,box}=sig,k=c.width/c.getBoundingClientRect().width,pad=6;
+  const x=Math.max(0,(box[0]-pad)*k),y=Math.max(0,(box[1]-pad)*k),w=Math.min(c.width-x,(box[2]-box[0]+2*pad)*k),h=Math.min(c.height-y,(box[3]-box[1]+2*pad)*k);
+  const o=document.createElement("canvas");o.width=Math.max(1,Math.round(w));o.height=Math.max(1,Math.round(h));o.getContext("2d").drawImage(c,x,y,w,h,0,0,o.width,o.height);
+  return new Promise((res,rej)=>o.toBlob(b=>b?b.arrayBuffer().then(res):rej(new Error("Couldn't read the signature")),"image/png"));
+}
+async function makePdf(mode){
+  const msg=$("#pdfMsg"),i=pdfItem,j=i.chosen,t1=$("#pTrue").checked,t2=$("#pTerms").checked;
+  if(mode==="sign"){
+    if(!t1||!t2){msg.textContent="Tick both boxes first.";return}
+    if(!sig.drawn){msg.textContent="Sign in the box first.";return}
+  }
+  msg.textContent="Creating your PDF…";
+  try{
+    await pdfTools();
+    const signature=mode==="sign"?await sigPng():null;
+    const bytes=await window.BacktrackClaimPDF.make({me,trip:{date:i.day,from:i.leg.from,to:i.leg.to,dep:fmt(j.dep),arr:fmt(j.arr),delay:j.eff},
+      ticketNo:cfg.ticketno,ticketKind:cfg.ticketKind,payout:cfg.payout,truthful:t1,terms:t2,signature});
+    const name=`Forseningsersattning-${i.day}-${fmt(j.dep).replace(":","")}.pdf`;
+    pdfFile=new File([bytes],name,{type:"application/pdf"});
+    msg.textContent="";
+    $("#pdfActions").innerHTML=`<button class="btn wide" type="button" data-savepdf>Save or print the PDF</button>
+      ${claims[i.id]?"":`<button class="btn ghost wide" type="button" data-claimed="${i.id}">I've posted it</button>`}`;
+  }catch(err){msg.textContent=err.message||"Couldn't create the PDF."}
+}
+async function savePdf(){
+  if(!pdfFile)return;
+  if(navigator.canShare&&navigator.canShare({files:[pdfFile]})){
+    try{await navigator.share({files:[pdfFile]});return}catch(e){if(e.name==="AbortError")return}
+  }
+  const url=URL.createObjectURL(pdfFile),a=document.createElement("a");
+  a.href=url;a.download=pdfFile.name;a.target="_blank";document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+function fillMe(){
+  document.querySelectorAll("[data-me]").forEach(x=>x.value=me[x.dataset.me]||"");
+  $("#m-kind").value=cfg.ticketKind||"app";$("#m-ticketno").value=cfg.ticketno||"";
+}
+function saveMe(e){
+  const t=e.target;
+  if(t.dataset.me){me[t.dataset.me]=t.value.trim();store.set("kv-me",me)}
+  else if(t.id==="m-kind"){cfg.ticketKind=t.value;store.set("kv-cfg",cfg)}
+  else if(t.id==="m-ticketno"){cfg.ticketno=t.value.trim();store.set("kv-cfg",cfg)}
+  const bad=me.pnr&&String(me.pnr).replace(/\D/g,"").length>=10&&!pnrOk(me.pnr);
+  $("#meMsg").style.color=bad?"var(--l75)":"var(--good)";
+  $("#meMsg").textContent=bad?"That personnummer doesn't look right.":"Saved on this phone";
+  clearTimeout(saveMe.t);if(!bad)saveMe.t=setTimeout(()=>$("#meMsg").textContent="",2200);
+}
+
 // ---------- Settings ----------
-const F={from:"#f-from",to:"#f-to",o1:"#f-o1",o2:"#f-o2",r1:"#f-r1",r2:"#f-r2",u1:"#f-u1",u2:"#f-u2",type:"#f-type",price:"#f-price",exp:"#f-exp",ticketno:"#f-ticketno"};
+const F={from:"#f-from",to:"#f-to",o1:"#f-o1",o2:"#f-o2",r1:"#f-r1",r2:"#f-r2",u1:"#f-u1",u2:"#f-u2",type:"#f-type",price:"#f-price",exp:"#f-exp"};
 function fillForm(){
   if(!$("#f-from").options.length){const opts=STATIONS.map(s=>`<option>${s}</option>`).join("");$("#f-from").innerHTML=opts;$("#f-to").innerHTML=opts}
   for(const[k,id]of Object.entries(F))$(id).value=cfg[k]??"";
-  syncTicketFields();
+  syncTicketFields();fillMe();
   const yr=localDate().slice(0,4),ty=tickets.filter(t=>t.date.startsWith(yr));
   $("#ticketLog").textContent=ty.length?`Tickets logged in ${yr}: ${ty.length}, ${kr(ty.reduce((s,t)=>s+t.price,0))} kr in total.`:"";
 }
@@ -755,15 +893,22 @@ document.addEventListener("click",async e=>{
   if(d.claim){const[day,leg,dep]=d.claim.split("|"),id=day+"|"+leg;took[id]=Number(dep);store.set("kv-took",took);openClaim=id;renderDelays();return}
   if(d.unclaim){delete took[d.unclaim];delete claims[d.unclaim];store.set("kv-took",took);store.set("kv-claims",claims);renderDelays();return}
   if(d.details){openClaim=openClaim===d.details?null:d.details;renderDelays();return}
-  if(d.claimed){claims[d.claimed]={s:"sent",date:localDate()};store.set("kv-claims",claims);openClaim=null;renderDelays();return}
+  if(d.claimed){claims[d.claimed]={s:"sent",date:localDate()};store.set("kv-claims",claims);openClaim=null;closePdfSheet();renderDelays();return}
   if(d.paid){const[id,amt]=d.paid.split("|");claims[id]={s:"paid",amt:Number(amt),date:localDate()};store.set("kv-claims",claims);renderDelays();return}
   if(d.reset){const c=claims[d.reset];if(c&&c.s==="paid")claims[d.reset]={s:"sent",date:c.date};else delete claims[d.reset];store.set("kv-claims",claims);renderDelays();return}
+  if(d.pdf){openPdfSheet(d.pdf);return}
+  if(d.sheetclose!=null){closePdfSheet();return}
+  if(d.medit!=null){closePdfSheet();sendTo("settings","meCard");return}
+  if(d.sigclear!=null){const{c,ctx}=sig;ctx.clearRect(0,0,c.width,c.height);sig.drawn=false;sig.box=[1e9,1e9,-1e9,-1e9];return}
+  if(d.makepdf){makePdf(d.makepdf);return}
+  if(d.savepdf!=null){savePdf();return}
+  if(b.id==="meDelete"){me={};store.set("kv-me",{});cfg.ticketno="";store.set("kv-cfg",cfg);fillMe();$("#meMsg").style.color="var(--good)";$("#meMsg").textContent="Your details are deleted from this phone.";return}
   if(d.copy){
     const v=decodeURIComponent(d.copy),lbl=b.querySelector("i")||b,orig=lbl.textContent;
     try{await navigator.clipboard.writeText(v);lbl.textContent="Copied ✓"}catch(_){lbl.textContent="Copy failed"}
     setTimeout(()=>lbl.textContent=orig,1400);return;
   }
-  if(d.goto){sendTo("settings","form");setTimeout(()=>$("#"+d.goto)?.focus(),450);return}
+  if(d.goto){sendTo("settings","meCard");setTimeout(()=>$("#"+d.goto)?.focus(),450);return}
   if(b.id==="notifOn"){try{await turnOnNotifications()}catch(err){$("#notifMsg").textContent="Couldn't turn on notifications: "+err.message}return}
   if(b.id==="notifTest"){try{await post("/test",{id:push.id});$("#notifMsg").textContent="Sent. It should arrive in a few seconds."}catch(err){$("#notifMsg").textContent="Couldn't send: "+err.message}return}
   if(b.id==="notifDelete"){
@@ -793,7 +938,7 @@ document.addEventListener("change",async e=>{
     try{await subscribe(Object.assign({},push,{[key]:t.checked}),true);$("#notifMsg").textContent="Saved."}catch(err){t.checked=!t.checked;$("#notifMsg").textContent=err.message}
   }
 });
-$("#form").addEventListener("input",saveForm);$("#form").addEventListener("submit",e=>e.preventDefault());
+$("#form").addEventListener("input",saveForm);$("#meCard").addEventListener("input",saveMe);$("#meCard").addEventListener("change",saveMe);$("#meCard").addEventListener("submit",e=>e.preventDefault());$("#form").addEventListener("submit",e=>e.preventDefault());
 
 function renderHeader(){$("#routeLabel").textContent=`${city(cfg.from)} ↔ ${city(cfg.to)}`}
 function renderAll(){renderHeader();renderSky();renderTicket();renderNight();renderNotif();renderDelays()}
