@@ -89,6 +89,9 @@ input.sw:checked::after{transform:translateX(20px);background:#fff}
 .tr .t s{display:block;font-weight:600;font-size:12px;color:var(--muted)}
 .tr .info{font-size:13px;color:var(--muted);min-width:0}
 .tr .info b{color:var(--ink);font-weight:600;display:block;font-size:14.5px}
+.tag.in{background:rgba(79,211,154,.16);color:var(--good)}
+.toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:var(--card2);border:1px solid var(--line);color:var(--ink);padding:12px 16px;border-radius:14px;font-size:14px;max-width:min(92vw,440px);box-shadow:var(--shadow);animation:fade .2s}
+.okmark{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:rgba(79,211,154,.16);color:var(--good);font-size:28px;font-weight:700;margin:4px auto 0}
 .tag{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;background:var(--soft);color:var(--ink);margin-top:4px}
 .tag.l50{background:var(--l50);color:#1d1205}.tag.l75{background:var(--l75);color:#fff}.tag.l100,.tag.c{background:var(--l100);color:#fff}
 .alertline{display:block;font-size:12.5px;color:var(--l50);margin-top:3px}
@@ -220,6 +223,7 @@ nav button[aria-selected="true"]{color:var(--accent)}
       <div class="seg" id="dirSeg" style="margin-top:12px"></div>
       <div id="board" class="trains"></div>
       <p class="small muted" id="boardNote" style="margin:10px 0 0"></p>
+      <button class="btn ghost wide" id="onTrain" type="button" style="margin-top:12px">I'm on a train, check in</button>
     </div>
   </section>
 
@@ -613,7 +617,7 @@ function tripBlock(i){
   const st=c?.s==="paid"?`<span class="status ok">Paid ${kr(c.amt)} kr</span>`:c?.s==="sent"?`<span class="status ok">Claim sent</span>`:i.chosen?`<span class="status">About ${kr(i.value)} kr</span>`:"";
   const rows=i.late.filter(j=>!i.chosen||i.chosen.dep===j.dep).map(j=>{const L=level(j.eff),on=i.chosen&&i.chosen.dep===j.dep;
     return`<div class="tr${on?" sel":""}"><div class="t">${fmt(j.dep)}</div>
-      <div class="info"><b>Arrived ${fmt(j.arr+j.eff)}</b>${j.train?`Train ${esc(j.train)} `:""}${j.cancelled?`<span class="tag c">Cancelled</span>`:`<span class="tag l${L}">+${j.eff} min</span>`}</div>
+      <div class="info"><b>Arrived ${fmt(j.arr+j.eff)}</b>${j.train?`Train ${esc(j.train)} `:""}${j.cancelled?`<span class="tag c">Cancelled</span>`:`<span class="tag l${L}">+${j.eff} min</span>`}${checkins[i.id]&&checkins[i.id].dep===j.dep?` <span class="tag in">Checked in on board ✓</span>`:""}</div>
       ${on?(c?"<span></span>":`<button class="pick" type="button" data-unclaim="${i.id}">Change</button>`):`<button class="pick" type="button" data-claim="${i.id}|${j.dep}">Claim</button>`}</div>`}).join("");
   return`<div class="trip"><div class="triphead"><b>${dayLabel(i.day)} · ${i.leg.name}</b>${st}</div><div class="trains">${rows}</div>${i.chosen?claimPanel(i):""}</div>`;
 }
@@ -637,6 +641,114 @@ function claimStatus(i){
   if(!c)return`<button class="btn small ghost" type="button" data-claimed="${i.id}">I've sent the claim</button>`;
   if(c.s==="sent")return`<button class="btn small ghost" type="button" data-paid="${i.id}|${Math.round(i.value)}">I've been paid</button><button class="linkbtn" type="button" data-reset="${i.id}">Undo</button>`;
   return`<label class="row small" style="gap:6px">Paid <input type="number" inputmode="numeric" data-amt="${i.id}" value="${Number(c.amt||0)}"> kr</label><button class="linkbtn" type="button" data-reset="${i.id}">Undo</button>`;
+}
+
+// ---------- Check-in on board ----------
+// Reads the phone's location once, checks it's on the line between the right stations,
+// and keeps only "checked in on the 16:29 at 16:41". Coordinates are never stored or sent.
+let checkins=store.get("kv-checkins",{}),ciCtx=null,pendingClaim=null;
+// Rail line Lund C - København H, with points along the Öresund Bridge
+const LINE=[["Lund C",55.7056,13.1867],[null,55.6720,13.1350],[null,55.6370,13.0750],["Malmö C",55.6091,13.0003],["Triangeln",55.5947,13.0011],["Hyllie",55.5627,12.9755],
+  [null,55.5648,12.9065],[null,55.5880,12.7600],[null,55.6130,12.6700],["Kastrup",55.6296,12.6491],["Ørestad",55.6289,12.5791],["København H",55.6727,12.5647]];
+const KX=111.32*Math.cos(55.62*Math.PI/180),KY=110.57;
+const LPTS=(()=>{let s=0;return LINE.map((p,k)=>{if(k){const q=LINE[k-1];s+=Math.hypot((p[2]-q[2])*KX,(p[1]-q[1])*KY)}return{name:p[0],x:p[2]*KX,y:p[1]*KY,s}})})();
+const kmAt=name=>(LPTS.find(p=>p.name===name)||{}).s;
+function onLine(lat,lon){
+  const x=lon*KX,y=lat*KY;let best={d:1e9,s:0};
+  for(let k=1;k<LPTS.length;k++){
+    const a=LPTS[k-1],b=LPTS[k],dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((x-a.x)*dx+(y-a.y)*dy)/(dx*dx+dy*dy)));
+    const d=Math.hypot(x-(a.x+t*dx),y-(a.y+t*dy));if(d<best.d)best={d,s:a.s+t*Math.hypot(dx,dy)};
+  }
+  return best;
+}
+function between(s){const st=LPTS.filter(p=>p.name);for(let k=1;k<st.length;k++)if(s<=st[k].s)return Math.abs(s-st[k-1].s)<1.2?`at ${st[k-1].name}`:Math.abs(st[k].s-s)<1.2?`at ${st[k].name}`:`between ${st[k-1].name} and ${st[k].name}`;return`near ${st[st.length-1].name}`}
+function legOf(from){return from===cfg.from?"out":"ret"}
+function toast(msg){const t=document.createElement("div");t.className="toast";t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),4200)}
+
+function sheet(html){
+  closeSheet();
+  const el=document.createElement("div");el.className="sheetbg";el.id="ciSheet";
+  el.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
+  el.addEventListener("click",e=>{if(e.target===el)closeSheet()});
+  document.body.appendChild(el);return el;
+}
+function closeSheet(){$("#ciSheet")?.remove()}
+
+// from a notification: "checkin=2026-11-06|ret|989|1093"
+function openCheckin(c){
+  ciCtx=c;
+  const late=c.delay?`, running ${c.delay} min late`:"";
+  sheet(`<div class="spread"><h2>On the ${fmt(c.dep)}?</h2><button class="linkbtn" type="button" data-sheetx>Close</button></div>
+    <p class="small muted" style="margin:-6px 0 0">${esc(c.from)} → ${esc(c.to)}${c.train?` · train ${esc(c.train)}`:""}${late}</p>
+    <p style="margin:0">Check in once the train is moving. Backtrack checks your location once to confirm you're on board, and only saves that you checked in, not where you were.</p>
+    <div class="stack" style="gap:10px" id="ciActions">
+      <button class="btn wide" type="button" data-ci="go">Check in</button>
+      <button class="btn ghost wide" type="button" data-sheetx>I'm not on this train</button>
+      ${push&&SERVER?`<button class="linkbtn" type="button" data-ci="mute">Not travelling today, stop asking</button>`:""}
+    </div>
+    <p class="small" id="ciMsg" style="margin:0;min-height:18px;color:var(--l50)"></p>`);
+}
+function doCheckin(){
+  const c=ciCtx,msg=$("#ciMsg");if(!c)return;
+  if(!navigator.geolocation){msg.textContent="This phone can't share its location with the app.";return}
+  msg.style.color="var(--muted)";msg.textContent="Checking your location…";
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const{latitude:lat,longitude:lon,accuracy,speed}=pos.coords,ln=onLine(lat,lon);
+    const a=kmAt(c.from),b=kmAt(c.to),lo=Math.min(a,b),hi=Math.max(a,b),moving=speed!=null&&speed>4;
+    msg.style.color="var(--l50)";
+    if(accuracy>4000){msg.textContent="Couldn't get a precise location. Try again in a moment.";return}
+    if(ln.d>Math.max(2,accuracy/1000)){msg.textContent=`You don't seem to be on the train line between ${c.from} and ${c.to}.`;return}
+    if(ln.s<lo-1.5||ln.s>hi+1.5){msg.textContent=`You seem to be ${between(ln.s)}, which isn't between ${c.from} and ${c.to}.`;return}
+    if(Math.abs(ln.s-a)<0.8&&!moving){msg.textContent=`Looks like you're still at ${c.from}. Check in once the train has left.`;return}
+    saveCheckin(c,between(ln.s));
+  },err=>{
+    msg.style.color="var(--l50)";
+    msg.innerHTML=err.code===1?"Location access is off. On iPhone: Settings › Privacy &amp; Security › Location Services › Safari Websites › <b>While Using</b>, then try again."
+      :"Couldn't get your location. Try again in a moment.";
+  },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+}
+function saveCheckin(c,where){
+  const id=c.date+"|"+c.leg,at=localHM();
+  checkins[id]={dep:c.dep,train:c.train||"",at};store.set("kv-checkins",checkins);
+  took[id]=c.dep;store.set("kv-took",took);
+  if(push&&SERVER)post("/checkin",{id:push.id,leg:c.leg,from:c.from,to:c.to,sched:`${c.date}T${fmt(c.dep)}`,train:c.train||""}).catch(()=>{});
+  sheet(`<div class="okmark">✓</div><h2 style="text-align:center">Checked in</h2>
+    <p class="small muted" style="margin:-6px 0 0;text-align:center">On the ${fmt(c.dep)} to ${esc(c.to)}, ${esc(where)} at ${at}.</p>
+    <p style="margin:0;text-align:center">${push&&SERVER?"Backtrack will tell you when the train arrives. If it's 20+ minutes late, your claim will be ready to sign.":"Turn on notifications to hear when it arrives. If it's 20+ minutes late, the trip shows up under Delays with this check-in."}</p>
+    <button class="btn wide" type="button" data-sheetx>Done</button>`);
+  if(DATA)renderDelays();
+}
+// "I'm on a train": trains that left in the last 45 minutes in either direction
+async function openOnTrain(){
+  sheet(`<div class="spread"><h2>Which train are you on?</h2><button class="linkbtn" type="button" data-sheetx>Close</button></div><div id="otList" class="trains"><p class="small muted">Loading trains…</p></div>`);
+  if(!SERVER){$("#otList").innerHTML=`<p class="notice">Live trains need Backtrack's server, which isn't reachable right now.</p>`;return}
+  const now=toMin(localHM()),since=`${localDate()}T${fmt(Math.max(0,now-45))}`,dirs=[[cfg.from,cfg.to],[cfg.to,cfg.from]];
+  try{
+    const res=await Promise.all(dirs.map(([f,t])=>api(`/trains?from=${encodeURIComponent(f)}&to=${encodeURIComponent(t)}&time=${encodeURIComponent(since)}`).then(r=>(r.trains||[]).map(x=>Object.assign(x,{from:f,to:t}))).catch(()=>[])));
+    const list=res.flat().filter(x=>{const rm=toMin(x.real.slice(11,16));return x.sched.slice(0,10)===localDate()&&!x.canceled&&rm<=now+1&&rm>=now-45}).sort((x,y)=>y.real.localeCompare(x.real));
+    $("#otList").innerHTML=list.length?list.map(x=>`<div class="tr"><div class="t">${x.sched.slice(11,16)}</div><div class="info"><b>To ${esc(x.to)}</b>${x.train?`Train ${esc(x.train)} `:""}${x.delay>0?`<span class="tag l${level(x.delay)||50}">+${x.delay} min</span>`:`<span class="tag">On time</span>`}</div>
+      <button class="pick" type="button" data-ontrain="${encodeURIComponent(JSON.stringify({date:localDate(),leg:legOf(x.from),dep:toMin(x.sched.slice(11,16)),train:x.train,from:x.from,to:x.to,delay:x.delay}))}">This one</button></div>`).join("")
+      :`<p class="small muted" style="margin:0">No trains between ${esc(cfg.from)} and ${esc(cfg.to)} have left in the last 45 minutes.</p>`;
+  }catch(_){$("#otList").innerHTML=`<p class="notice">Couldn't load trains. Try again.</p>`}
+}
+// links from notifications ("?checkin=…" / "?claim=…")
+function handleLink(q){
+  const p=new URLSearchParams(q);
+  if(p.get("checkin")){
+    const[date,leg,dep,train]=p.get("checkin").split("|"),from=leg==="ret"?cfg.to:cfg.from,to=leg==="ret"?cfg.from:cfg.to;
+    show("today");openCheckin({date,leg,dep:Number(dep),train,from,to});
+  }else if(p.get("claim")){
+    const[date,leg,dep]=p.get("claim").split("|");pendingClaim={id:date+"|"+leg,dep:Number(dep)};
+    took[pendingClaim.id]=pendingClaim.dep;store.set("kv-took",took);show("delays");tryPendingClaim();
+  }
+}
+function tryPendingClaim(){
+  if(!pendingClaim||!DATA)return;
+  const c=pendingClaim;if(!unlocked){unlocked=true;store.set("kv-unlocked",true)}
+  period="two";openClaim=c.id;renderDelays();
+  const i=analyse().items.find(x=>x.id===c.id);
+  if(i&&i.chosen){pendingClaim=null;openPdfSheet(c.id)}
+  else toast("The train data is still updating. Your claim will show up here within about 15 minutes.");
 }
 
 // ---------- Claim form (PDF) ----------
@@ -768,6 +880,7 @@ function renderNotif(){
     const hasUsual=!!(cfg.u1||cfg.u2),hasTicket=cfg.type==="30"&&!!cfg.exp;
     body=`<p class="status ok" style="margin:0 0 4px">Notifications are on</p>
     <label class="switch"><div><b>Morning alert</b><span>${hasUsual?`40 min before your usual train (${[cfg.u1,cfg.u2].filter(Boolean).join(", ")}) if it's late or cancelled`:"Add your usual trains above to use this"}</span></div><input type="checkbox" id="usualToggle" ${push.usual?"checked":""} ${hasUsual?"":"disabled"}></label>
+    <label class="switch"><div><b>Late-train check-in</b><span>When a train in your time windows runs 10+ min late, ask if you're on it. If you check in and it arrives 20+ min late, your claim is ready to sign.</span></div><input type="checkbox" id="watchToggle" ${push.watch?"checked":""}></label>
     <label class="switch"><div><b>Evening check</b><span>At ${esc(cfg.r1)}, if a morning train in your window was 20+ min late</span></div><input type="checkbox" id="morningToggle" ${push.morning?"checked":""}></label>
     <label class="switch"><div><b>Ticket reminder</b><span>${hasTicket?"Two days before your 30-day ticket runs out":"Add the date your ticket is valid until above"}</span></div><input type="checkbox" id="ticketToggle" ${push.ticket?"checked":""} ${hasTicket?"":"disabled"}></label>
     <div class="row" style="margin-top:12px"><button class="btn small ghost" id="notifTest" type="button">Send a test</button><button class="btn small ghost" id="notifDelete" type="button">Turn off and delete my data</button></div>`;
@@ -790,12 +903,12 @@ async function subscribe(p,silent){
     const{key}=await api("/vapid");
     sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(key)});
   }
-  const cfgOut={from:cfg.from,to:cfg.to,o1:cfg.o1,o2:cfg.o2,r1:cfg.r1,type:cfg.type,price:cfg.price,factor:FACTOR};
+  const cfgOut={from:cfg.from,to:cfg.to,o1:cfg.o1,o2:cfg.o2,r1:cfg.r1,r2:cfg.r2,type:cfg.type,price:cfg.price,factor:FACTOR,watch:!!p.watch};
   const{id}=await post("/subscribe",{sub:sub.toJSON(),cfg:cfgOut,morning:!!p.morning,checks:checksFor(p)});
-  push={id,morning:!!p.morning,usual:!!p.usual,ticket:!!p.ticket};store.set("kv-push",push);
+  push={id,morning:!!p.morning,usual:!!p.usual,ticket:!!p.ticket,watch:!!p.watch};store.set("kv-push",push);
 }
 async function turnOnNotifications(){
-  await subscribe({usual:!!(cfg.u1||cfg.u2),ticket:cfg.type==="30"&&!!cfg.exp},false);
+  await subscribe({usual:!!(cfg.u1||cfg.u2),ticket:cfg.type==="30"&&!!cfg.exp,watch:true},false);
   renderNotif();
   if(pendingAfterNotif&&pendingAfterNotif.type==="plan"){
     const p=pendingAfterNotif;pendingAfterNotif=null;show("today");
@@ -897,6 +1010,11 @@ document.addEventListener("click",async e=>{
   if(d.paid){const[id,amt]=d.paid.split("|");claims[id]={s:"paid",amt:Number(amt),date:localDate()};store.set("kv-claims",claims);renderDelays();return}
   if(d.reset){const c=claims[d.reset];if(c&&c.s==="paid")claims[d.reset]={s:"sent",date:c.date};else delete claims[d.reset];store.set("kv-claims",claims);renderDelays();return}
   if(d.pdf){openPdfSheet(d.pdf);return}
+  if(d.sheetx!=null){closeSheet();return}
+  if(d.ci==="go"){doCheckin();return}
+  if(d.ci==="mute"){if(push)post("/mute",{id:push.id}).catch(()=>{});closeSheet();toast("OK, no more check-in questions today.");return}
+  if(d.ontrain){openCheckin(JSON.parse(decodeURIComponent(d.ontrain)));return}
+  if(b.id==="onTrain"){openOnTrain();return}
   if(d.sheetclose!=null){closePdfSheet();return}
   if(d.medit!=null){closePdfSheet();sendTo("settings","meCard");return}
   if(d.sigclear!=null){const{c,ctx}=sig;ctx.clearRect(0,0,c.width,c.height);sig.drawn=false;sig.box=[1e9,1e9,-1e9,-1e9];return}
@@ -933,8 +1051,8 @@ document.addEventListener("change",async e=>{
     renderNight();return;
   }
   if(t.dataset&&t.dataset.amt){const c=claims[t.dataset.amt];if(c){c.amt=Number(t.value||0);store.set("kv-claims",claims);renderDelays()}return}
-  if(t.id==="usualToggle"||t.id==="ticketToggle"||t.id==="morningToggle"){
-    const key={usualToggle:"usual",ticketToggle:"ticket",morningToggle:"morning"}[t.id];
+  if(t.id==="usualToggle"||t.id==="ticketToggle"||t.id==="morningToggle"||t.id==="watchToggle"){
+    const key={usualToggle:"usual",ticketToggle:"ticket",morningToggle:"morning",watchToggle:"watch"}[t.id];
     try{await subscribe(Object.assign({},push,{[key]:t.checked}),true);$("#notifMsg").textContent="Saved."}catch(err){t.checked=!t.checked;$("#notifMsg").textContent=err.message}
   }
 });
@@ -951,6 +1069,7 @@ if("serviceWorker"in navigator){
   }).catch(()=>{});
   let reloaded=false;const hadController=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener("controllerchange",()=>{if(hadController&&!reloaded){reloaded=true;location.reload()}});
+  navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.link)handleLink(e.data.link)});
 }
 if(night&&night.date!==localDate()){night=null;store.set("kv-night",null)}
 dir=toMin(localHM())>=4*60&&toMin(localHM())<12*60?"work":"home";
@@ -961,13 +1080,14 @@ fetch("config.json",{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({})
   renderAll();show(store.get("kv-view","today"));
   if(!store.get("kv-onboarded",false))openGuide();
   if(push&&SERVER)subscribe(push,true).catch(()=>{});
+  if(location.search){const q=location.search.slice(1);history.replaceState(null,"",location.pathname);handleLink(q)}
 });
 const RAW="https://raw.githubusercontent.com/dahlinpetter/delay-report/main/data/";
 const get=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
 Promise.all([get(RAW+"page_history.json"),get(RAW+"delays.json")]).then(([h,l])=>{
   if(l&&l.example)l=null;
   if(!h&&!l){$("#summary").innerHTML=`<p class="notice" style="margin:0">Couldn't load the train data. Check your connection and reopen the app.</p>`;return}
-  DATA=merge([h,l]);renderDelays();
+  DATA=merge([h,l]);renderDelays();tryPendingClaim();
 });
 setInterval(()=>{renderSky();if(!document.hidden&&!$("#v-today").hidden)loadBoard()},60000);
 })();

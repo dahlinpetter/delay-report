@@ -2,6 +2,8 @@
 // - keeps the Trafiklab key secret and serves live departures
 // - stores push subscriptions and reminder plans in D1
 // - every minute: sends due train reminders and the evening "morning train was late" check
+// - late-train watch: asks "on it?" when a train in the user's window runs late, and after a
+//   check-in tells them if it arrived 20+ min late
 // Data from Trafiklab.se (CC-BY 4.0).
 
 const API = "https://realtime-api.trafiklab.se/v1";
@@ -55,8 +57,15 @@ async function db(env) {
       env.DB.prepare("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, sub TEXT, cfg TEXT, morning INTEGER DEFAULT 0, r1 TEXT, updated INTEGER)"),
       env.DB.prepare("CREATE TABLE IF NOT EXISTS reminders (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, due INTEGER, mins INTEGER, train TEXT, sched TEXT, frm TEXT, too TEXT, sent INTEGER DEFAULT 0)"),
       env.DB.prepare("CREATE TABLE IF NOT EXISTS msgs (uid TEXT PRIMARY KEY, title TEXT, body TEXT, at INTEGER)"),
-      env.DB.prepare("CREATE TABLE IF NOT EXISTS checks (uid TEXT, kind TEXT, at TEXT, date TEXT, dep TEXT, frm TEXT, too TEXT)")
+      env.DB.prepare("CREATE TABLE IF NOT EXISTS checks (uid TEXT, kind TEXT, at TEXT, date TEXT, dep TEXT, frm TEXT, too TEXT)"),
+      // late-train watch: which trains we've already asked about, and days the user said they're not travelling
+      env.DB.prepare("CREATE TABLE IF NOT EXISTS asked (uid TEXT, date TEXT, leg TEXT, train TEXT, sched TEXT, at INTEGER)"),
+      env.DB.prepare("CREATE TABLE IF NOT EXISTS muted (uid TEXT, date TEXT, PRIMARY KEY (uid, date))"),
+      // check-ins waiting for the train to arrive (no location is stored, only which train)
+      env.DB.prepare("CREATE TABLE IF NOT EXISTS checkins (uid TEXT, date TEXT, leg TEXT, frm TEXT, too TEXT, sched TEXT, train TEXT, at INTEGER)")
     ]);
+    // the link a notification opens; added later, so ignore "duplicate column"
+    await env.DB.prepare("ALTER TABLE msgs ADD COLUMN link TEXT").run().catch(() => {});
     ready = true;
   }
   return env.DB;
@@ -75,10 +84,10 @@ async function vapid(env) {
 }
 
 // ---------- web push (no payload: the app fetches the message from /msg) ----------
-async function push(env, uid, subJson, title, body) {
+async function push(env, uid, subJson, title, body, link) {
   const d = await db(env);
-  await d.prepare("INSERT INTO msgs (uid, title, body, at) VALUES (?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET title=excluded.title, body=excluded.body, at=excluded.at")
-    .bind(uid, title, body, Date.now()).run();
+  await d.prepare("INSERT INTO msgs (uid, title, body, at, link) VALUES (?, ?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET title=excluded.title, body=excluded.body, at=excluded.at, link=excluded.link")
+    .bind(uid, title, body, Date.now(), link || null).run();
   const sub = JSON.parse(subJson);
   const v = await vapid(env);
   const aud = new URL(sub.endpoint).origin;
@@ -211,6 +220,87 @@ async function morningCheck(env) {
   }
 }
 
+// ---------- arrivals at a station (for the check-in follow-up) ----------
+async function arrivals(env, at, time) {
+  const area = STATIONS[at];
+  if (!area) return [];
+  const url = `${API}/arrivals/${area}${time ? "/" + time : ""}?key=${env.TRAFIKLAB_KEY}`;
+  const cache = caches.default, ck = new Request(url.replace(/key=[^&]+/, "k"));
+  let res = await cache.match(ck);
+  if (!res) {
+    const r = await fetch(url);
+    if (!r.ok) return [];
+    res = new Response(await r.text(), { headers: { "Content-Type": "application/json", "Cache-Control": "max-age=60" } });
+    await cache.put(ck, res.clone());
+  }
+  const data = await res.json();
+  return (data.arrivals || []).filter(a => (a.route || {}).transport_mode === "TRAIN").map(a => ({
+    train: a.trip?.technical_number ? String(a.trip.technical_number) : "",
+    sched: a.scheduled, real: a.realtime || a.scheduled,
+    delay: Math.round((a.delay || 0) / 60), canceled: !!a.canceled
+  }));
+}
+
+// ---------- late-train watch ----------
+// For users who turned it on: when a train in their time window runs 10+ min late and has
+// just left, ask once if they're on it. At most two questions per window per day.
+const WATCH_MIN_DELAY = 10;
+async function watchLate(env) {
+  const now = Date.now(), lp = localParts(now);
+  if (lp.weekday === "Sat" || lp.weekday === "Sun") return;
+  const d = await db(env), nowMin = toMin(lp.hm);
+  const users = (await d.prepare("SELECT * FROM users WHERE cfg LIKE '%\"watch\":true%' AND id NOT IN (SELECT uid FROM muted WHERE date=?)").bind(lp.date).all()).results;
+  for (const u of users) {
+    const c = JSON.parse(u.cfg || "{}");
+    const legs = [
+      { k: "out", from: c.from, to: c.to, lo: c.o1, hi: c.o2 },
+      { k: "ret", from: c.to, to: c.from, lo: c.r1, hi: c.r2 }
+    ];
+    for (const L of legs) {
+      if (!L.lo || !L.hi || !STATIONS[L.from] || !STATIONS[L.to]) continue;
+      const lo = toMin(L.lo), hi = toMin(L.hi);
+      if (nowMin < lo || nowMin > hi + 45) continue; // only around this window
+      const asked = (await d.prepare("SELECT train, sched FROM asked WHERE uid=? AND date=? AND leg=?").bind(u.id, lp.date, L.k).all()).results;
+      if (asked.length >= 2) continue;
+      const since = fmt(Math.max(lo, nowMin - 40));
+      const list = await departures(env, L.from, L.to, `${lp.date}T${since}`).catch(() => []);
+      const t = list.find(x => {
+        const sm = toMin(x.sched.slice(11, 16)), rm = toMin(x.real.slice(11, 16));
+        return x.sched.slice(0, 10) === lp.date && sm >= lo && sm <= hi && !x.canceled && x.delay >= WATCH_MIN_DELAY
+          && rm <= nowMin + 1 && rm >= nowMin - 20 // has just left
+          && !asked.some(a => a.sched === x.sched);
+      });
+      if (!t) continue;
+      await d.prepare("INSERT INTO asked (uid, date, leg, train, sched, at) VALUES (?, ?, ?, ?, ?, ?)").bind(u.id, lp.date, L.k, t.train, t.sched, now).run();
+      const dep = t.sched.slice(11, 16);
+      const link = `checkin=${lp.date}|${L.k}|${toMin(dep)}|${t.train}`;
+      await push(env, u.id, u.sub, `The ${dep} to ${L.to} is ${t.delay} min late`, `On it? Tap to check in, then Backtrack tells you when it arrives.`, link).catch(() => {});
+    }
+  }
+}
+
+// After a check-in: once the train has arrived, tell the user if it was 20+ min late
+async function arrivalCheck(env) {
+  const now = Date.now(), d = await db(env);
+  const rows = (await d.prepare("SELECT c.*, u.sub FROM checkins c JOIN users u ON u.id=c.uid").all()).results;
+  for (const c of rows) {
+    const depAt = localToEpoch(c.sched);
+    if (now < depAt + 15 * 60000) continue;
+    if (now > depAt + 4 * 3600000) { await d.prepare("DELETE FROM checkins WHERE uid=? AND sched=?").bind(c.uid, c.sched).run(); continue; }
+    const lp = localParts(depAt);
+    const list = await arrivals(env, c.too, `${lp.date}T${lp.hm}`).catch(() => []);
+    const a = list.find(x => c.train && x.train === c.train);
+    if (!a) continue;
+    if (Date.parse(a.real) > now && !a.canceled) continue; // not arrived yet
+    await d.prepare("DELETE FROM checkins WHERE uid=? AND sched=?").bind(c.uid, c.sched).run();
+    if (a.delay < 20 && !a.canceled) continue;
+    const dep = c.sched.slice(11, 16);
+    const link = `claim=${c.date}|${c.leg}|${toMin(dep)}`;
+    await push(env, c.uid, c.sub, `Your ${dep} arrived ${a.delay} min late`,
+      `You checked in on board, so your claim is ready. Open Backtrack to check it and sign.`, link).catch(() => {});
+  }
+}
+
 // ---------- automatic deletion (data minimisation) ----------
 // - reminders: deleted 1 hour after they were due
 // - messages: deleted after 24 hours
@@ -221,11 +311,15 @@ async function cleanup(env) {
   await d.batch([
     d.prepare("DELETE FROM reminders WHERE due < ?").bind(now - H),
     d.prepare("DELETE FROM msgs WHERE at < ?").bind(now - 24 * H),
-    d.prepare("DELETE FROM users WHERE morning=0 AND updated < ? AND id NOT IN (SELECT uid FROM reminders WHERE sent=0) AND id NOT IN (SELECT uid FROM checks)").bind(now - 6 * H),
+    d.prepare("DELETE FROM users WHERE morning=0 AND cfg NOT LIKE '%\"watch\":true%' AND updated < ? AND id NOT IN (SELECT uid FROM reminders WHERE sent=0) AND id NOT IN (SELECT uid FROM checks) AND id NOT IN (SELECT uid FROM checkins)").bind(now - 6 * H),
     d.prepare("DELETE FROM users WHERE updated < ?").bind(now - 30 * 24 * H),
     d.prepare("DELETE FROM msgs WHERE uid NOT IN (SELECT id FROM users)"),
     d.prepare("DELETE FROM checks WHERE uid NOT IN (SELECT id FROM users)"),
-    d.prepare("DELETE FROM checks WHERE kind='ticket' AND date < ?").bind(localParts(now - 7 * 24 * H).date)
+    d.prepare("DELETE FROM checks WHERE kind='ticket' AND date < ?").bind(localParts(now - 7 * 24 * H).date),
+    d.prepare("DELETE FROM asked WHERE at < ?").bind(now - 24 * H),
+    d.prepare("DELETE FROM muted WHERE date < ?").bind(localParts(now).date),
+    d.prepare("DELETE FROM checkins WHERE at < ?").bind(now - 6 * H),
+    d.prepare("DELETE FROM checkins WHERE uid NOT IN (SELECT id FROM users)")
   ]);
 }
 
@@ -253,7 +347,7 @@ export default {
         const b = await req.json();
         if (!b.sub || !b.sub.endpoint) return json({ error: "missing subscription" }, 400);
         const id = await idFor(b.sub.endpoint), raw = b.cfg || {};
-        const c = {}; for (const k of ["from", "to", "o1", "o2", "r1", "type", "price", "factor"]) if (raw[k] != null) c[k] = raw[k];
+        const c = {}; for (const k of ["from", "to", "o1", "o2", "r1", "r2", "type", "price", "factor", "watch"]) if (raw[k] != null) c[k] = raw[k];
         await (await db(env)).prepare("INSERT INTO users (id, sub, cfg, morning, r1, updated) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sub=excluded.sub, cfg=excluded.cfg, morning=excluded.morning, r1=excluded.r1, updated=excluded.updated")
           .bind(id, JSON.stringify({ endpoint: b.sub.endpoint, keys: b.sub.keys || {} }), JSON.stringify(c), b.morning ? 1 : 0, c.r1 || null, Date.now()).run();
         // morning alerts and ticket reminders: replace this user's checks
@@ -298,9 +392,31 @@ export default {
         return json({ ok: true });
       }
 
+      if (p === "/checkin" && req.method === "POST") {
+        const b = await req.json(), d = await db(env);
+        const u = await d.prepare("SELECT id FROM users WHERE id=?").bind(b.id).first();
+        if (!u) return json({ error: "turn on notifications first" }, 400);
+        if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(b.sched || "") || !STATIONS[b.from] || !STATIONS[b.to]) return json({ error: "bad check-in" }, 400);
+        await d.batch([
+          d.prepare("DELETE FROM checkins WHERE uid=? AND sched=?").bind(b.id, b.sched),
+          d.prepare("INSERT INTO checkins (uid, date, leg, frm, too, sched, train, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(b.id, b.sched.slice(0, 10), b.leg === "ret" ? "ret" : "out", b.from, b.to, b.sched.slice(0, 16), String(b.train || ""), Date.now())
+        ]);
+        return json({ ok: true });
+      }
+
+      if (p === "/mute" && req.method === "POST") {
+        const b = await req.json();
+        await (await db(env)).prepare("INSERT OR IGNORE INTO muted (uid, date) VALUES (?, ?)").bind(b.id, localParts(Date.now()).date).run();
+        return json({ ok: true });
+      }
+
       if (p === "/me" && req.method === "DELETE") {
         const id = url.searchParams.get("id"), d = await db(env);
         await d.batch([
+          d.prepare("DELETE FROM asked WHERE uid=?").bind(id),
+          d.prepare("DELETE FROM muted WHERE uid=?").bind(id),
+          d.prepare("DELETE FROM checkins WHERE uid=?").bind(id),
           d.prepare("DELETE FROM reminders WHERE uid=?").bind(id),
           d.prepare("DELETE FROM msgs WHERE uid=?").bind(id),
           d.prepare("DELETE FROM checks WHERE uid=?").bind(id),
@@ -310,7 +426,7 @@ export default {
       }
 
       if (p === "/msg") {
-        const m = await (await db(env)).prepare("SELECT title, body FROM msgs WHERE uid=?").bind(url.searchParams.get("id")).first();
+        const m = await (await db(env)).prepare("SELECT title, body, link FROM msgs WHERE uid=?").bind(url.searchParams.get("id")).first();
         return json(m || { title: "Backtrack", body: "Open Backtrack for the latest train info." });
       }
 
@@ -329,7 +445,8 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    const jobs = [sendDueReminders(env), morningCheck(env), runChecks(env)];
+    const jobs = [sendDueReminders(env), morningCheck(env), runChecks(env), arrivalCheck(env)];
+    if (new Date(event.scheduledTime).getUTCMinutes() % 2 === 0) jobs.push(watchLate(env));
     if (new Date(event.scheduledTime).getUTCMinutes() % 15 === 0) jobs.push(cleanup(env));
     ctx.waitUntil(Promise.all(jobs));
   }
