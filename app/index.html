@@ -90,6 +90,31 @@ input.sw:checked::after{transform:translateX(20px);background:#fff}
 .tr .info{font-size:13px;color:var(--muted);min-width:0}
 .tr .info b{color:var(--ink);font-weight:600;display:block;font-size:14.5px}
 .worth{font-size:12px;font-weight:700;color:var(--good);margin-left:6px;white-space:nowrap}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.tile{display:grid;gap:5px;align-content:start;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;color:var(--ink);min-height:108px;box-shadow:var(--shadow);transition:transform .1s,border-color .12s}
+.tile:active{transform:scale(.97)}
+.tile svg{width:24px;height:24px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;margin-bottom:4px}
+.tile b{font-size:15px;font-weight:700}
+.tile span{font-size:12.5px;color:var(--muted);line-height:1.35}
+.tile.wide{grid-column:1/-1;min-height:0}
+.status .kicker{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.status .main{font-family:var(--display);font-size:28px;font-weight:700;line-height:1.15;margin:4px 0 2px}
+.status .sub{font-size:14px;color:var(--muted)}
+.status .row2{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.back{padding:2px 4px 10px}
+.rel{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.rel:last-child{border-bottom:0}
+.rel .t{font-family:var(--display);font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
+.rel .bar{height:8px;border-radius:99px;background:var(--soft);overflow:hidden}
+.rel .bar i{display:block;height:100%;border-radius:99px;background:var(--good)}
+.rel .n{font-size:12.5px;color:var(--muted);text-align:right;white-space:nowrap}
+.rel.best .t{color:var(--good)}
+.money{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.money div{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px}
+.money b{display:block;font-family:var(--display);font-size:24px}
+.money span{font-size:12.5px;color:var(--muted)}
+.plist{display:grid;gap:0;margin-top:6px}
+.plist div{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
 .tag.in{background:rgba(79,211,154,.16);color:var(--good)}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:var(--card2);border:1px solid var(--line);color:var(--ink);padding:12px 16px;border-radius:14px;font-size:14px;max-width:min(92vw,440px);box-shadow:var(--shadow);animation:fade .2s}
 .okmark{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:rgba(79,211,154,.16);color:var(--good);font-size:28px;font-weight:700;margin:4px auto 0}
@@ -228,15 +253,24 @@ nav button[aria-selected="true"]{color:var(--accent)}
   <div class="card install" id="install" hidden></div>
 
   <section id="v-today" class="view">
+    <div class="card status" id="statusCard"><p class="small muted" style="margin:0">Checking your trains…</p></div>
     <div class="card alerts" id="alertsCard" hidden></div>
-    <div class="card" id="ticketCard" hidden></div>
-    <div class="card" id="nightCard"></div>
-    <div class="card">
-      <div class="spread"><h3 style="margin:0">Next trains</h3><button class="linkbtn" id="refresh" type="button">Refresh</button></div>
-      <div class="seg" id="dirSeg" style="margin-top:12px"></div>
-      <div id="board" class="trains"></div>
-      <p class="small muted" id="boardNote" style="margin:10px 0 0"></p>
-      <button class="btn ghost wide" id="onTrain" type="button" style="margin-top:12px">I'm on a train, check in</button>
+    <div id="toolsHome">
+      <h3 style="margin:6px 4px 0">Tools</h3>
+      <div class="tiles" id="tiles"></div>
+    </div>
+    <div id="toolView" hidden>
+      <button class="linkbtn back" type="button" data-tool="">‹ All tools</button>
+      <div class="card tool" data-panel="trains">
+        <div class="spread"><h2 style="margin:0">Live trains</h2><button class="linkbtn" id="refresh" type="button">Refresh</button></div>
+        <div class="seg" id="dirSeg" style="margin-top:12px"></div>
+        <div id="board" class="trains"></div>
+        <p class="small muted" id="boardNote" style="margin:10px 0 0"></p>
+      </div>
+      <div class="card tool" data-panel="night" id="nightCard"></div>
+      <div class="card tool" data-panel="ticket" id="ticketCard"></div>
+      <div class="card tool" data-panel="costs" id="costsCard"></div>
+      <div class="card tool" data-panel="reliable" id="reliableCard"></div>
     </div>
   </section>
 
@@ -340,7 +374,7 @@ nav button[aria-selected="true"]{color:var(--accent)}
 </main>
 
 <nav aria-label="Main"><div class="in">
-  <button type="button" data-view="today" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M8 21l2-4m6 4-2-4M5 11h14"/><circle cx="9" cy="14" r=".6"/><circle cx="15" cy="14" r=".6"/></svg>Today</button>
+  <button type="button" data-view="today" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M8 21l2-4m6 4-2-4M5 11h14"/><circle cx="9" cy="14" r=".6"/><circle cx="15" cy="14" r=".6"/></svg>Tools</button>
   <button type="button" data-view="delays" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>Delays</button>
   <button type="button" data-view="settings" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1M5.6 18.4l2.1-2.1m8.6-8.6 2.1-2.1"/></svg>Settings</button>
 </div></nav>
@@ -418,7 +452,7 @@ function show(v,keepScroll){
   document.querySelectorAll(".view").forEach(s=>s.hidden=s.id!=="v-"+v);
   document.querySelectorAll("nav button").forEach(b=>b.setAttribute("aria-selected",b.dataset.view===v));
   store.set("kv-view",v);if(!keepScroll)window.scrollTo(0,0);
-  if(v==="today")loadBoard();
+  if(v==="today")refreshToday();
   if(v==="delays")renderDelays();
 }
 function sendTo(view,cardId,msg){
@@ -545,17 +579,143 @@ function renderAlerts(list){
 const daysLeft=()=>cfg.type!=="30"||!cfg.exp?null:Math.round((dObj(cfg.exp)-dObj(localDate()))/86400000);
 function renderTicket(){
   const el=$("#ticketCard"),d=daysLeft();
-  if(d==null||d>5){el.hidden=true;return}
-  el.hidden=false;
-  el.innerHTML=`<h3 style="margin:0">Your 30-day ticket</h3><p style="margin:8px 0 12px">${d<0?`Ran out on ${dayLabel(cfg.exp)}.`:d===0?"Runs out <b>today</b>.":d===1?"Runs out <b>tomorrow</b>.":`Runs out in <b>${d} days</b>, on ${dayLabel(cfg.exp)}.`}</p>
-    <button class="btn small" data-newticket="1" type="button">I bought a new ticket</button>`;
+  if(cfg.type!=="30"){el.innerHTML=`<h2 style="margin:0">My ticket</h2><p class="muted" style="margin:8px 0 12px">You travel on single tickets. Each trip is valued at ${kr(cfg.price)} kr for compensation.</p><button class="btn small ghost" type="button" data-goto="f-type">Change ticket</button>`;renderTiles();return}
+  const left=d==null?"":d<0?`Ran out on ${dayLabel(cfg.exp)}.`:d===0?"Runs out <b>today</b>.":d===1?"Runs out <b>tomorrow</b>.":`Valid <b>${d} more days</b>, until ${dayLabel(cfg.exp)}.`;
+  el.innerHTML=`<h2 style="margin:0">My 30-day ticket</h2>
+    <p style="margin:8px 0 4px">${cfg.exp?left:"Add the date your ticket is valid until."}</p>
+    <p class="small muted" style="margin:0 0 14px">${kr(cfg.price)} kr · worth ${kr(cfg.price/FACTOR)} kr per trip when you claim${push&&push.ticket?" · reminder 2 days before it runs out":""}</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn small" data-newticket="1" type="button">I bought a new ticket today</button><button class="btn small ghost" type="button" data-goto="f-exp">Edit</button></div>`;
+  renderTiles();
 }
 function logTicket(){
   const today=localDate();tickets.push({date:today,price:Number(cfg.price||0)});store.set("kv-tickets",tickets);
-  cfg.exp=addDays(today,29);store.set("kv-cfg",cfg);fillForm();renderTicket();
+  cfg.exp=addDays(today,29);store.set("kv-cfg",cfg);fillForm();renderTicket();renderCosts();
   if(push&&SERVER)subscribe(push,true).catch(()=>{});
   flashSaved("New ticket saved, valid until "+dayLabel(cfg.exp)+".");
 }
+
+// ---------- Tools ----------
+let tool="",relLeg=null,side=null,nextInfo={},statusReq=0;
+const TILE_ICONS={
+  trains:'<svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M8 21l2-4m6 4-2-4M5 11h14"/></svg>',
+  night:'<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
+  ticket:'<svg viewBox="0 0 24 24"><path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"/><path d="M14 7v10" stroke-dasharray="2 2"/></svg>',
+  costs:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.5 0-2.5.8-2.5 2s1 1.6 2.5 2 2.5.9 2.5 2-1 2-2.5 2c-1.1 0-2.1-.5-2.6-1.5M12 6.5V8m0 8v1.5"/></svg>',
+  reliable:'<svg viewBox="0 0 24 24"><path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></svg>'
+};
+function openTool(t){
+  tool=t||"";
+  $("#toolsHome").hidden=!!tool;$("#toolView").hidden=!tool;$("#statusCard").hidden=!!tool;if(tool)$("#alertsCard").hidden=true;
+  document.querySelectorAll("#toolView .tool").forEach(p=>p.hidden=p.dataset.panel!==tool);
+  window.scrollTo(0,0);
+  if(tool==="trains")loadBoard();
+  if(tool==="night"){renderNight();if(nightActive())loadNightTrains()}
+  if(tool==="ticket")renderTicket();
+  if(tool==="costs")renderCosts();
+  if(tool==="reliable")renderReliable();
+  if(!tool)renderTiles();
+}
+function refreshToday(){renderStatus();renderTiles();if(tool==="trains")loadBoard()}
+function renderTiles(){
+  const el=$("#tiles");if(!el)return;
+  const d=daysLeft(),yr=localDate().slice(0,4),c=costs(yr);
+  const sub={
+    trains:nextInfo.home?`Next to ${esc(city(nextInfo.to))}: ${nextInfo.home}`:"Departures both ways, live",
+    night:nightActive()?((night.plans||[]).length?`Reminding ${night.plans.map(x=>x.sched.slice(11,16)).sort().join(", ")}`:"On · pick a train"):"Get reminded before your train home",
+    ticket:cfg.type!=="30"?"Single tickets":!cfg.exp?"Add your ticket":d<0?"Ran out":d===0?"Runs out today":`${d} day${d===1?"":"s"} left`,
+    costs:`${kr(c.spent)} kr spent · ${kr(c.back)} kr back in ${yr}`,
+    reliable:bestTrain()||"Which train in your window is most on time"
+  };
+  const names={trains:"Live trains",night:"Tonight's reminders",ticket:"My ticket",costs:"Commuting costs",reliable:"Most reliable train"};
+  el.innerHTML=Object.keys(names).map(k=>`<button class="tile${k==="reliable"?" wide":""}" type="button" data-tool="${k}">${TILE_ICONS[k]}<b>${names[k]}</b><span>${sub[k]}</span></button>`).join("");
+}
+
+// where you are: home side or work side. Uses location only if already allowed, otherwise the time of day.
+const stn=n=>{const p=LINE.find(x=>x[0]===n);return p?[p[1],p[2]]:null};
+const kmBetween=(a,b)=>Math.hypot((a[1]-b[1])*KX,(a[0]-b[0])*KY);
+function guessSide(){const m=toMin(localHM());return m<12*60?"home":m<toMin(cfg.r2||"18:00")+60?"work":"home"}
+async function locate(prompt){
+  if(!navigator.geolocation)return null;
+  if(!prompt){try{const st=await navigator.permissions.query({name:"geolocation"});if(st.state!=="granted")return null}catch(_){if(!store.get("kv-loc",false))return null}}
+  return new Promise(res=>navigator.geolocation.getCurrentPosition(p=>{store.set("kv-loc",true);res([p.coords.latitude,p.coords.longitude])},()=>res(null),{enableHighAccuracy:false,maximumAge:600000,timeout:8000}));
+}
+function sideOf(pos){const h=stn(cfg.from),w=stn(cfg.to);if(!pos||!h||!w)return null;return kmBetween(pos,h)<=kmBetween(pos,w)?"home":"work"}
+async function askLocation(){const pos=await locate(true);if(pos){side={s:sideOf(pos),loc:true};dir=side.s==="work"?"home":"work";renderStatus(true)}else toast("Couldn't get your location. You can allow it in your phone's settings.")}
+async function renderStatus(keepSide){
+  const el=$("#statusCard");if(!el)return;const req=++statusReq;
+  if(!keepSide||!side){const pos=await locate(false);side=pos?{s:sideOf(pos)||guessSide(),loc:true}:{s:guessSide(),loc:false};if(!tool)dir=side.s==="work"?"home":"work"}
+  const atWork=side.s==="work",from=atWork?cfg.to:cfg.from,to=atWork?cfg.from:cfg.to,m=toMin(localHM());
+  const morning=!atWork&&m<toMin(cfg.o2||"09:00")+30&&m>=4*60;
+  const wantsTrain=atWork||morning;
+  let html="";
+  if(wantsTrain&&SERVER){
+    let t=null,list=[];
+    try{list=(await api(`/trains?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)).trains||[];t=list.find(x=>!x.canceled)}catch(_){}
+    if(req!==statusReq)return;
+    const canc=list.find(x=>x.canceled&&(!t||x.sched<t.sched));
+    nextInfo=t?{to,home:`${t.real.slice(11,16)}${t.delay>0?` (+${t.delay})`:""}`}:{};
+    html=t?`<div class="kicker">${atWork?"Next train home":`Next train to ${esc(city(to))}`}</div>
+      <div class="main">${t.real.slice(11,16)}${t.delay>0?` <span class="tag ${t.delay>=20?"l50":""}" style="vertical-align:middle">+${t.delay} min</span>`:""}</div>
+      <div class="sub">${t.delay>0?`Planned ${t.sched.slice(11,16)} · `:"On time · "}from ${esc(from)}${t.platform?`, track ${esc(t.platform)}`:""}${canc?` · the ${canc.sched.slice(11,16)} is cancelled`:""}</div>`
+      :`<div class="kicker">${atWork?"Train home":"Trains"}</div><div class="main" style="font-size:22px">No trains in the next hour</div>`;
+  }else if(!atWork){
+    const today=DATA?claimableToday():null;
+    html=`<div class="main" style="font-size:24px">${m<17*60?"Have a good day":"Welcome home"}</div><div class="sub">${today?`Your ${fmt(today.dep)} was ${today.eff} min late, worth about ${kr(tripValue()*level(today.eff)/100)} kr.`:m<17*60?"Backtrack keeps an eye on your trains.":"Hope you had a smooth trip."}</div>${today?`<div class="row2"><button class="btn small" type="button" data-view="delays">Claim it</button></div>`:""}`;
+  }
+  const d=daysLeft();
+  if(d!=null&&d<=3)html+=`<div class="row2"><span class="small" style="color:var(--l50)">Your 30-day ticket ${d<0?"has run out":d===0?"runs out today":d===1?"runs out tomorrow":`runs out in ${d} days`}.</span><button class="linkbtn" type="button" data-tool="ticket">Ticket</button></div>`;
+  if(!side.loc&&navigator.geolocation)html+=`<div class="row2"><button class="linkbtn" type="button" id="locOn" style="padding:0;font-size:13px">Use my location to pick the right direction</button></div>`;
+  el.innerHTML=html;renderTiles();
+}
+function claimableToday(){
+  const d=localDate();if(!DATA.byDay[d])return null;
+  const legs=[[cfg.from,cfg.to,cfg.o1,cfg.o2],[cfg.to,cfg.from,cfg.r1,cfg.r2]];let best=null;
+  for(const[f,t,a,b]of legs)for(const j of journeys(d,f,t))if(j.dep>=toMin(a)&&j.dep<=toMin(b)&&level(j.eff)&&(!best||j.eff>best.eff))best=j;
+  return best;
+}
+
+// Most reliable train: punctuality per departure in your window, last 30 days of data
+function reliability(leg){
+  const L=leg==="ret"?[cfg.to,cfg.from,cfg.r1,cfg.r2]:[cfg.from,cfg.to,cfg.o1,cfg.o2];
+  const lo=toMin(L[2]),hi=toMin(L[3]),days=Object.keys(DATA.byDay).sort().slice(-30),by={};
+  for(const d of days){const wd=dObj(d).getDay();if(wd===0||wd===6)continue;
+    for(const j of journeys(d,L[0],L[1])){if(j.dep<lo||j.dep>hi)continue;const r=by[j.dep]=by[j.dep]||{dep:j.dep,n:0,ok:0,bad:0};r.n++;if(!j.cancelled&&j.delay<5)r.ok++;if(level(j.eff))r.bad++}}
+  return{from:L[0],to:L[1],rows:Object.values(by).filter(r=>r.n>=3).sort((a,b)=>a.dep-b.dep),days:days.length};
+}
+function bestTrain(){
+  if(!DATA)return"";const r=reliability(relLeg||(side&&side.s==="work"?"ret":"out")).rows;if(!r.length)return"";
+  const b=r.slice().sort((x,y)=>y.ok/y.n-x.ok/x.n||x.bad-y.bad)[0];return`The ${fmt(b.dep)} is on time ${Math.round(100*b.ok/b.n)}% of days`;
+}
+function renderReliable(){
+  const el=$("#reliableCard");if(!el)return;
+  const leg=relLeg||(side&&side.s==="work"?"ret":"out");
+  const seg=`<div class="seg" style="margin:12px 0 4px"><button type="button" data-rleg="out" aria-selected="${leg==="out"}">To work</button><button type="button" data-rleg="ret" aria-selected="${leg==="ret"}">Home</button></div>`;
+  if(!DATA){el.innerHTML=`<h2 style="margin:0">Most reliable train</h2>${seg}<p class="small muted">Loading train data…</p>`;return}
+  const r=reliability(leg),best=r.rows.slice().sort((x,y)=>y.ok/y.n-x.ok/x.n||x.bad-y.bad)[0];
+  el.innerHTML=`<h2 style="margin:0">Most reliable train</h2>${seg}
+    <p class="small muted" style="margin:6px 0 8px">${esc(r.from)} → ${esc(r.to)}, weekdays in your time window. Share of days each departure arrived less than 5 min late.</p>
+    ${r.rows.length?r.rows.map(x=>{const p=Math.round(100*x.ok/x.n);return`<div class="rel${x===best?" best":""}"><div class="t">${fmt(x.dep)}</div><div class="bar"><i style="width:${p}%"></i></div><div class="n">${p}% on time${x.bad?` · ${x.bad}× 20+ late`:""}</div></div>`}).join("")
+      :`<p class="small muted">Not enough data for your time window yet.</p>`}
+    ${best?`<p class="small" style="margin:12px 0 0">Best bet: <b>the ${fmt(best.dep)}</b>.</p>`:""}`;
+}
+
+// Commuting costs: what you spent on tickets and what you got back
+function costs(yr){
+  const spent=tickets.filter(t=>String(t.date).startsWith(yr)).reduce((s,t)=>s+Number(t.price||0),0);
+  const paid=Object.values(claims).filter(c=>c.s==="paid"&&String(c.date).startsWith(yr));
+  return{spent,back:paid.reduce((s,c)=>s+Number(c.amt||0),0),nback:paid.length,waiting:Object.values(claims).filter(c=>c.s==="sent").length};
+}
+function renderCosts(){
+  const el=$("#costsCard");if(!el)return;
+  const yr=localDate().slice(0,4),c=costs(yr),list=tickets.map((t,i)=>({...t,i})).filter(t=>String(t.date).startsWith(yr)).reverse();
+  el.innerHTML=`<h2 style="margin:0">Commuting costs ${yr}</h2>
+    <div class="money"><div><b>${kr(c.spent)}</b><span>kr spent on tickets</span></div><div><b style="color:var(--good)">${kr(c.back)}</b><span>kr back from ${c.nback} claim${c.nback===1?"":"s"}${c.waiting?` · ${c.waiting} waiting`:""}</span></div></div>
+    <p class="small" style="margin:0 0 12px">Your commute cost you <b>${kr(Math.max(0,c.spent-c.back))} kr</b> so far this year.</p>
+    <div class="row" style="gap:8px;align-items:end"><label class="field" style="flex:1"><span>Add a ticket purchase (kr)</span><input id="pAmt" type="number" inputmode="numeric" min="1" placeholder="${cfg.type==="30"?kr(cfg.price):"e.g. 120"}"></label><button class="btn small" type="button" id="addPurchase" style="min-height:50px">Add</button></div>
+    ${list.length?`<div class="plist">${list.slice(0,12).map(t=>`<div><span>${dayLabel(t.date)}</span><span>${kr(t.price)} kr <button class="linkbtn" type="button" data-delp="${t.i}" aria-label="Remove" style="padding:0 0 0 10px">✕</button></span></div>`).join("")}</div>`:`<p class="small muted" style="margin:10px 0 0">Tickets you log with "I bought a new ticket" show up here.</p>`}
+    <p class="small muted" style="margin:14px 0 0">Good to keep for your tax return: commuting costs above a yearly threshold may be deductible in Sweden (reseavdrag), and compensation you got back lowers the cost. Check Skatteverket's current rules.</p>`;
+}
+function addPurchase(){const v=Number($("#pAmt").value||0);if(!(v>0))return;tickets.push({date:localDate(),price:v});store.set("kv-tickets",tickets);renderCosts();renderTiles()}
 
 // ---------- Delays ----------
 function merge(docs){
@@ -926,7 +1086,7 @@ async function turnOnNotifications(){
   await subscribe({usual:!!(cfg.u1||cfg.u2),ticket:cfg.type==="30"&&!!cfg.exp,watch:true},false);
   renderNotif();
   if(pendingAfterNotif&&pendingAfterNotif.type==="plan"){
-    const p=pendingAfterNotif;pendingAfterNotif=null;show("today");
+    const p=pendingAfterNotif;pendingAfterNotif=null;show("today");openTool("night");
     if(nightActive())togglePlan(p.sched,p.train);
   }else if($("#notifMsg"))$("#notifMsg").textContent="Done. Send a test to check it works.";
 }
@@ -1009,8 +1169,13 @@ window.addEventListener("appinstalled",()=>{$("#install").hidden=true});
 document.addEventListener("click",async e=>{
   const b=e.target.closest("button");if(!b)return;
   const d=b.dataset;
-  if(d.view){show(d.view);return}
+  if(d.view){if(d.view==="today"&&!$("#v-today").hidden&&tool){openTool("");return}show(d.view);return}
   if(d.dir){dir=d.dir;loadBoard();return}
+  if(d.tool!=null){openTool(d.tool);return}
+  if(d.rleg){relLeg=d.rleg;renderReliable();return}
+  if(b.id==="locOn"){askLocation();return}
+  if(b.id==="addPurchase"){addPurchase();return}
+  if(d.delp!=null){tickets.splice(Number(d.delp),1);store.set("kv-tickets",tickets);renderCosts();renderTiles();return}
   if(b.id==="refresh"){loadBoard();if(nightActive())loadNightTrains();return}
   if(d.plan){const i=d.plan.lastIndexOf("|");togglePlan(d.plan.slice(0,i),d.plan.slice(i+1));return}
   if(d.clock){moveClock(Number(d.clock));return}
@@ -1041,7 +1206,7 @@ document.addEventListener("click",async e=>{
     try{await navigator.clipboard.writeText(v);lbl.textContent="Copied ✓"}catch(_){lbl.textContent="Copy failed"}
     setTimeout(()=>lbl.textContent=orig,1400);return;
   }
-  if(d.goto){sendTo("settings","meCard");setTimeout(()=>$("#"+d.goto)?.focus(),450);return}
+  if(d.goto){sendTo("settings",d.goto.startsWith("f-")?"form":"meCard");setTimeout(()=>$("#"+d.goto)?.focus(),450);return}
   if(b.id==="notifOn"){try{await turnOnNotifications()}catch(err){$("#notifMsg").textContent="Couldn't turn on notifications: "+err.message}return}
   if(b.id==="notifTest"){try{await post("/test",{id:push.id});$("#notifMsg").textContent="Sent. It should arrive in a few seconds."}catch(err){$("#notifMsg").textContent="Couldn't send: "+err.message}return}
   if(b.id==="notifDelete"){
@@ -1074,7 +1239,7 @@ document.addEventListener("change",async e=>{
 $("#form").addEventListener("input",saveForm);$("#meCard").addEventListener("input",saveMe);$("#meCard").addEventListener("change",saveMe);$("#meCard").addEventListener("submit",e=>e.preventDefault());$("#form").addEventListener("submit",e=>e.preventDefault());
 
 function renderHeader(){$("#routeLabel").textContent=`${city(cfg.from)} ↔ ${city(cfg.to)}`}
-function renderAll(){renderHeader();renderSky();renderTicket();renderNight();renderNotif();renderDelays()}
+function renderAll(){renderHeader();renderSky();renderTicket();renderNight();renderNotif();renderDelays();renderCosts();renderTiles();refreshToday()}
 
 // ---------- start ----------
 setTimeout(()=>$("#splash")?.remove(),800);
@@ -1102,9 +1267,9 @@ const get=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
 Promise.all([get(RAW+"page_history.json"),get(RAW+"delays.json")]).then(([h,l])=>{
   if(l&&l.example)l=null;
   if(!h&&!l){$("#summary").innerHTML=`<p class="notice" style="margin:0">Couldn't load the train data. Check your connection and reopen the app.</p>`;return}
-  DATA=merge([h,l]);renderDelays();tryPendingClaim();
+  DATA=merge([h,l]);renderDelays();tryPendingClaim();renderReliable();renderTiles();renderStatus();
 });
-setInterval(()=>{renderSky();if(!document.hidden&&!$("#v-today").hidden)loadBoard()},60000);
+setInterval(()=>{renderSky();if(!document.hidden&&!$("#v-today").hidden)refreshToday()},60000);
 })();
 </script>
 </body>
