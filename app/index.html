@@ -81,6 +81,13 @@ nav .in{display:flex;max-width:560px;width:100%}
 nav button{flex:1;border:0;background:transparent;color:var(--muted);padding:6px 0;font-size:12px;font-weight:600;display:grid;justify-items:center;gap:2px}
 nav button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
 nav button[aria-selected="true"]{color:var(--accent)}
+.install{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--brand);color:#fff;border-radius:16px;padding:14px}
+@media (prefers-color-scheme:dark){.install{background:#1f4a39}}
+.install img{width:44px;height:44px;border-radius:11px}
+.install b{display:block;font-size:15px}
+.install span{font-size:13px;opacity:.9}
+.install button{border:0;background:transparent;color:#fff;font-size:20px;line-height:1;padding:4px}
+.install .go{background:var(--accent);color:var(--accent-ink);border-radius:10px;font-size:14px;font-weight:600;padding:8px 12px}
 footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
@@ -92,6 +99,7 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px
 </header>
 
 <main>
+  <div class="install" id="install" hidden></div>
   <!-- TODAY -->
   <section id="v-today" class="view">
     <div class="card" id="nightCard"></div>
@@ -446,10 +454,30 @@ function renderAll(){
   renderNight();renderDelays();renderNotif();
 }
 
+// ---------- install guide (shown in the browser, never in the installed app) ----------
+let deferredInstall=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;renderInstall()});
+function renderInstall(){
+  const el=$("#install");
+  if(standalone||store.get("kv-install-hide",false)){el.hidden=true;return}
+  const share='<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:-3px" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M8 7l4-4 4 4M5 12v7h14v-7"/></svg>';
+  let text,action="";
+  if(isIOS)text=`Tap ${share} <b style="display:inline">Share</b> in Safari, then <b style="display:inline">Add to Home Screen</b>.`;
+  else if(deferredInstall){text="Install it for quick access and train reminders.";action=`<button class="go" id="installGo" type="button">Install</button>`}
+  else text="Open your browser menu and choose <b style=\"display:inline\">Install app</b> or <b style=\"display:inline\">Add to Home screen</b>.";
+  el.innerHTML=`<img src="icons/icon-192.png" alt=""><div><b>Put Kvitt on your home screen</b><span>${text}</span></div>${action||`<button id="installHide" type="button" aria-label="Hide">×</button>`}`;
+  el.hidden=false;
+}
+document.addEventListener("click",async e=>{
+  if(e.target.closest("#installGo")&&deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice.catch(()=>{});deferredInstall=null;renderInstall()}
+  if(e.target.closest("#installHide")){store.set("kv-install-hide",true);renderInstall()}
+});
+window.addEventListener("appinstalled",()=>{$("#install").hidden=true});
+
 // ---------- start ----------
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 if(night&&night.date!==localDate()){night=null;store.set("kv-night",null)}
-fillForm();
+fillForm();renderInstall();
 fetch("config.json",{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({})).then(c=>{
   SERVER=c&&c.server?String(c.server).replace(/\/$/,""):null;
   renderAll();show(store.get("kv-view","today"));
