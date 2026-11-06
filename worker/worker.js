@@ -2,7 +2,7 @@
 // - keeps the Trafiklab key secret and serves live departures
 // - stores push subscriptions and reminder plans in D1
 // - every minute: sends due train reminders and the evening "morning train was late" check
-// - late-train watch: asks "on it?" when a train in the user's window runs late, and after a
+// - late-train watch: asks "on it?" when a train in the user's window runs 18+ min late, and after a
 //   check-in tells them if it arrived 20+ min late
 // Data from Trafiklab.se (CC-BY 4.0).
 
@@ -244,7 +244,7 @@ async function arrivals(env, at, time) {
 // ---------- late-train watch ----------
 // For users who turned it on: when a train in their time window runs 10+ min late and has
 // just left, ask once if they're on it. At most two questions per window per day.
-const WATCH_MIN_DELAY = 10;
+const WATCH_MIN_DELAY = 18;
 async function watchLate(env) {
   const now = Date.now(), lp = localParts(now);
   if (lp.weekday === "Sat" || lp.weekday === "Sun") return;
