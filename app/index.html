@@ -101,7 +101,17 @@ input.sw:checked::after{transform:translateX(20px);background:#fff}
 .status .main{font-family:var(--display);font-size:28px;font-weight:700;line-height:1.15;margin:4px 0 2px}
 .status .sub{font-size:14px;color:var(--muted)}
 .status .row2{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
-.back{padding:2px 4px 10px}
+.back{border:0;display:inline-flex;align-items:center;gap:6px;font-size:16px;padding:10px 14px 10px 10px;margin:0 0 10px -2px;background:var(--soft);border-radius:12px;color:var(--ink)}
+.back svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.disrupt{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;background:rgba(240,169,69,.09);border:1px solid rgba(240,169,69,.28);border-radius:16px;padding:12px 14px}
+.disrupt svg{width:20px;height:20px;stroke:var(--l50);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-top:1px}
+.disrupt b{display:block;font-size:14px;color:var(--ink)}
+.disrupt p{margin:3px 0 0;font-size:13px;color:var(--muted);line-height:1.4}
+.disrupt .clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.disrupt.open .clamp{-webkit-line-clamp:unset;display:block}
+.disrupt .linkbtn{font-size:13px;padding:4px 0 0}
+.warnchip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--l50);margin-left:6px}
+.rel2{display:grid;gap:3px}
 .rel{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .rel:last-child{border-bottom:0}
 .rel .t{font-family:var(--display);font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
@@ -125,6 +135,7 @@ input.sw:checked::after{transform:translateX(20px);background:#fff}
 .pick[aria-pressed="true"]{background:var(--action);color:#fff;border-color:var(--action)}
 .notice{background:var(--warn-bg);border-radius:12px;padding:10px 12px;font-size:13.5px}
 .alerts{border-color:#5a3c1c}
+#alertsCard{padding:0;background:none;border:0;box-shadow:none}
 
 #nightCard{padding:16px 18px}
 #nightCard h2{font-size:17px;line-height:1.3}
@@ -260,9 +271,10 @@ nav button[aria-selected="true"]{color:var(--accent)}
       <div class="tiles" id="tiles"></div>
     </div>
     <div id="toolView" hidden>
-      <button class="linkbtn back" type="button" data-tool="">‹ All tools</button>
+      <button class="back" type="button" data-tool=""><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>All tools</button>
       <div class="card tool" data-panel="trains">
         <div class="spread"><h2 style="margin:0">Live trains</h2><button class="linkbtn" id="refresh" type="button">Refresh</button></div>
+        <div id="boardAlerts" style="margin-top:12px"></div>
         <div class="seg" id="dirSeg" style="margin-top:12px"></div>
         <div id="board" class="trains"></div>
         <p class="small muted" id="boardNote" style="margin:10px 0 0"></p>
@@ -477,7 +489,7 @@ function trainRow(t,mode){
   const sel=mode==="night"&&(night.plans||[]).some(p=>p.sched===t.sched&&p.train===t.train);
   const tag=(t.canceled?`<span class="tag c">Cancelled</span>`:late?`<span class="tag ${t.delay>=20?"l50":""}">+${t.delay} min</span>`:"")+(!t.canceled&&level(t.delay)?`<span class="worth">≈ ${kr(tripValue()*level(t.delay)/100)} kr</span>`:"");
   return`<div class="tr${sel?" sel":""}"><div class="t">${late&&!t.canceled?`<s>${dep}</s>${real}`:dep}</div>
-    <div class="info"><b>${esc(t.direction)}</b>${t.platform?`Track ${esc(t.platform)}`:""}${t.train?` · ${esc(t.train)}`:""} ${tag}${(t.alerts||[]).slice(0,1).map(a=>`<span class="alertline">${esc(a)}</span>`).join("")}</div>
+    <div class="info"><b>${esc(t.direction)}</b>${t.platform?`Track ${esc(t.platform)}`:""}${t.train?` · ${esc(t.train)}`:""} ${tag}${(t.alerts||[]).length?`<span class="warnchip">⚠ Notice</span>`:""}</div>
     ${mode==="night"&&!t.canceled?`<button class="pick" type="button" data-plan="${esc(t.sched)}|${esc(t.train)}" aria-pressed="${sel}">${sel?"Reminding ✓":"Remind me"}</button>`:"<span></span>"}</div>`;
 }
 
@@ -496,9 +508,8 @@ function nightTimeToLocal(min){
 }
 function renderNight(){
   const c=$("#nightCard"),work=cfg.to;
-  if(!nightActive()&&isEvening()&&store.get("kv-night-skip","")!==localDate()){night={date:localDate(),min:timeOptions()[0],auto:true,plans:[]};store.set("kv-night",night)}
-  const head=`<label class="nighthead"><div><h2 style="margin:0">Want travel reminders tonight?</h2><span class="small muted">${nightActive()?`Trains from ${esc(city(work))} to ${esc(city(cfg.from))}`:"Get reminded before your train home, and warned if it's late."}</span></div><input type="checkbox" class="sw" id="nightToggle" ${nightActive()?"checked":""} aria-label="Travel reminders tonight"></label>`;
-  if(!nightActive()){c.innerHTML=head;return}
+  if(!nightActive()){const o=timeOptions();night={date:localDate(),min:isEvening()?o[0]:(o.find(m=>m>=23*60)||o[0]),plans:[]};store.set("kv-night",night)}
+  const head=`<h2 style="margin:0">Tonight's reminders</h2><p class="small muted" style="margin:4px 0 0">Trains from ${esc(city(work))} to ${esc(city(cfg.from))}. Tap <b>Remind me</b> and Backtrack reminds you 60, 30 and 15 min before, and warns you if it's late.</p>`;
   night.plans=night.plans||[];
   const o=timeOptions();if(!o.includes(Number(night.min)))night.min=o[0];
   c.innerHTML=`${head}
@@ -540,7 +551,7 @@ function drawNightTrains(){
 function renderPlanStatus(){
   const el=$("#nightPlan");if(!el)return;
   const p=night.plans||[];
-  el.innerHTML=p.length?`<span class="status ok">Reminders on for ${p.map(x=>x.sched.slice(11,16)).sort().join(" and ")}</span> <span class="muted">· 60, 30 and 15 min before</span>`
+  el.innerHTML=p.length?`<span class="status ok">Reminding you about the ${p.map(x=>x.sched.slice(11,16)).sort().join(" and ")}</span>`
     :"";
 }
 let planSync=Promise.resolve();
@@ -570,11 +581,17 @@ async function loadBoard(){
     $("#boardNote").textContent=`From ${from}. Updated ${localHM()}.`;
   }catch(e){$("#board").innerHTML=`<p class="notice">Couldn't load trains. ${esc(e.message)}</p>`}
 }
+const WARN='<svg viewBox="0 0 24 24"><path d="M12 4 2.5 20h19z"/><path d="M12 10v4.5m0 3v.01"/></svg>';
+function disruptHTML(list){
+  const msgs=[...new Set(list.flatMap(t=>t.alerts||[]))].slice(0,4),canc=list.filter(t=>t.canceled).length;
+  if(!msgs.length&&!canc)return"";
+  const title=canc?`${canc} cancelled train${canc>1?"s":""} in the next hour`:msgs.length>1?`${msgs.length} disruption notices`:"Disruption on your line";
+  return`<div class="disrupt">${WARN}<div><b>${title}</b>${msgs.length?`<p class="clamp">${msgs.map(esc).join(" · ")}</p><button class="linkbtn" type="button" data-more>Read more</button>`:""}</div></div>`;
+}
 function renderAlerts(list){
-  const msgs=[...new Set(list.flatMap(t=>t.alerts||[]))].slice(0,4),canc=list.filter(t=>t.canceled).length,el=$("#alertsCard");
-  if(!msgs.length&&!canc){el.hidden=true;return}
-  el.hidden=false;
-  el.innerHTML=`<h3 style="margin:0;color:var(--l50)">Disruptions on your line</h3>${canc?`<p class="small" style="margin:8px 0 0">${canc} cancelled train${canc>1?"s":""} in the next hour.</p>`:""}${msgs.length?`<ul class="small" style="margin:8px 0 0;padding-left:18px">${msgs.map(a=>`<li>${esc(a)}</li>`).join("")}</ul>`:""}`;
+  const h=disruptHTML(list),el=$("#alertsCard");
+  el.hidden=!h||!!tool;el.innerHTML=h;
+  const b=$("#boardAlerts");if(b)b.innerHTML=h;
 }
 const daysLeft=()=>cfg.type!=="30"||!cfg.exp?null:Math.round((dObj(cfg.exp)-dObj(localDate()))/86400000);
 function renderTicket(){
@@ -586,6 +603,29 @@ function renderTicket(){
     <p class="small muted" style="margin:0 0 14px">${kr(cfg.price)} kr · worth ${kr(cfg.price/FACTOR)} kr per trip when you claim${push&&push.ticket?" · reminder 2 days before it runs out":""}</p>
     <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn small" data-newticket="1" type="button">I bought a new ticket today</button><button class="btn small ghost" type="button" data-goto="f-exp">Edit</button></div>`;
   renderTiles();
+}
+function openNewTicket(){
+  const today=localDate();
+  sheet(`<div class="spread"><h2>New 30-day ticket</h2><button class="linkbtn" type="button" data-sheetx>Close</button></div>
+    <p class="small muted" style="margin:-6px 0 0">Check the details. Change anything that's different this time.</p>
+    <div class="grid2">
+      <label class="field"><span>Bought on</span><input type="date" id="ntDate" value="${today}"></label>
+      <label class="field"><span>Price (kr)</span><input type="number" inputmode="numeric" id="ntPrice" value="${Number(cfg.price||0)}"></label>
+    </div>
+    <div class="grid2">
+      <label class="field"><span>Valid until</span><input type="date" id="ntExp" value="${addDays(today,29)}"></label>
+      <label class="field"><span>Ticket or card no.</span><input id="ntNo" value="${esc(cfg.ticketno||"")}" placeholder="Optional"></label>
+    </div>
+    <button class="btn wide" type="button" id="ntSave">Save ticket</button>`);
+  $("#ntDate").addEventListener("change",e=>{if(e.target.value)$("#ntExp").value=addDays(e.target.value,29)});
+}
+function saveNewTicket(){
+  const date=$("#ntDate").value||localDate(),price=Number($("#ntPrice").value||0),exp=$("#ntExp").value||addDays(date,29);
+  tickets.push({date,price});store.set("kv-tickets",tickets);
+  cfg.type="30";cfg.price=price;cfg.exp=exp;cfg.ticketno=$("#ntNo").value.trim();store.set("kv-cfg",cfg);
+  closeSheet();fillForm();renderTicket();renderCosts();renderTiles();renderStatus(true);
+  if(push&&SERVER)subscribe(push,true).catch(()=>{});
+  toast(`Saved. Valid until ${dayLabel(exp)}.`);
 }
 function logTicket(){
   const today=localDate();tickets.push({date:today,price:Number(cfg.price||0)});store.set("kv-tickets",tickets);
@@ -621,10 +661,10 @@ function renderTiles(){
   const d=daysLeft(),yr=localDate().slice(0,4),c=costs(yr);
   const sub={
     trains:nextInfo.home?`Next to ${esc(city(nextInfo.to))}: ${nextInfo.home}`:"Departures both ways, live",
-    night:nightActive()?((night.plans||[]).length?`Reminding ${night.plans.map(x=>x.sched.slice(11,16)).sort().join(", ")}`:"On · pick a train"):"Get reminded before your train home",
+    night:nightActive()&&(night.plans||[]).length?`<span style="color:var(--good)">Reminding ${night.plans.map(x=>x.sched.slice(11,16)).sort().join(", ")}</span>`:"Pick a train to be reminded about",
     ticket:cfg.type!=="30"?"Single tickets":!cfg.exp?"Add your ticket":d<0?"Ran out":d===0?"Runs out today":`${d} day${d===1?"":"s"} left`,
-    costs:`${kr(c.spent)} kr spent · ${kr(c.back)} kr back in ${yr}`,
-    reliable:bestTrain()||"Which train in your window is most on time"
+    costs:`${kr(c.spent)} kr spent · <span style="color:var(--good)">${kr(c.back)} kr refunded</span>`,
+    reliable:relTile()||"Which train in your window is most on time"
   };
   const names={trains:"Live trains",night:"Tonight's reminders",ticket:"My ticket",costs:"Commuting costs",reliable:"Most reliable train"};
   el.innerHTML=Object.keys(names).map(k=>`<button class="tile${k==="reliable"?" wide":""}" type="button" data-tool="${k}">${TILE_ICONS[k]}<b>${names[k]}</b><span>${sub[k]}</span></button>`).join("");
@@ -652,6 +692,7 @@ async function renderStatus(keepSide){
     let t=null,list=[];
     try{list=(await api(`/trains?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)).trains||[];t=list.find(x=>!x.canceled)}catch(_){}
     if(req!==statusReq)return;
+    renderAlerts(list);
     const canc=list.find(x=>x.canceled&&(!t||x.sched<t.sched));
     nextInfo=t?{to,home:`${t.real.slice(11,16)}${t.delay>0?` (+${t.delay})`:""}`}:{};
     html=t?`<div class="kicker">${atWork?"Next train home":`Next train to ${esc(city(to))}`}</div>
@@ -686,6 +727,12 @@ function bestTrain(){
   if(!DATA)return"";const r=reliability(relLeg||(side&&side.s==="work"?"ret":"out")).rows;if(!r.length)return"";
   const b=r.slice().sort((x,y)=>y.ok/y.n-x.ok/x.n||x.bad-y.bad)[0];return`The ${fmt(b.dep)} is on time ${Math.round(100*b.ok/b.n)}% of days`;
 }
+function relTile(){
+  if(!DATA)return"";
+  const one=leg=>{const r=reliability(leg).rows;if(!r.length)return"";const b=r.slice().sort((x,y)=>y.ok/y.n-x.ok/x.n||x.bad-y.bad)[0];return`<b style="color:var(--ink);font-size:13px">${fmt(b.dep)}</b> · ${Math.round(100*b.ok/b.n)}% on time`};
+  const a=one("out"),b=one("ret");if(!a&&!b)return"";
+  return`<span class="rel2"><span>To work: ${a||"not enough data"}</span><span>Home: ${b||"not enough data"}</span></span>`;
+}
 function renderReliable(){
   const el=$("#reliableCard");if(!el)return;
   const leg=relLeg||(side&&side.s==="work"?"ret":"out");
@@ -709,7 +756,7 @@ function renderCosts(){
   const el=$("#costsCard");if(!el)return;
   const yr=localDate().slice(0,4),c=costs(yr),list=tickets.map((t,i)=>({...t,i})).filter(t=>String(t.date).startsWith(yr)).reverse();
   el.innerHTML=`<h2 style="margin:0">Commuting costs ${yr}</h2>
-    <div class="money"><div><b>${kr(c.spent)}</b><span>kr spent on tickets</span></div><div><b style="color:var(--good)">${kr(c.back)}</b><span>kr back from ${c.nback} claim${c.nback===1?"":"s"}${c.waiting?` · ${c.waiting} waiting`:""}</span></div></div>
+    <div class="money"><div><b>${kr(c.spent)}</b><span>kr spent on tickets</span></div><div><b style="color:var(--good)">${kr(c.back)}</b><span>kr in total refunds (${c.nback} claim${c.nback===1?"":"s"}${c.waiting?`, ${c.waiting} waiting`:""})</span></div></div>
     <p class="small" style="margin:0 0 12px">Your commute cost you <b>${kr(Math.max(0,c.spent-c.back))} kr</b> so far this year.</p>
     <div class="row" style="gap:8px;align-items:end"><label class="field" style="flex:1"><span>Add a ticket purchase (kr)</span><input id="pAmt" type="number" inputmode="numeric" min="1" placeholder="${cfg.type==="30"?kr(cfg.price):"e.g. 120"}"></label><button class="btn small" type="button" id="addPurchase" style="min-height:50px">Add</button></div>
     ${list.length?`<div class="plist">${list.slice(0,12).map(t=>`<div><span>${dayLabel(t.date)}</span><span>${kr(t.price)} kr <button class="linkbtn" type="button" data-delp="${t.i}" aria-label="Remove" style="padding:0 0 0 10px">✕</button></span></div>`).join("")}</div>`:`<p class="small muted" style="margin:10px 0 0">Tickets you log with "I bought a new ticket" show up here.</p>`}
@@ -909,6 +956,7 @@ async function openOnTrain(){
 // links from notifications ("?checkin=…" / "?claim=…")
 function handleLink(q){
   const p=new URLSearchParams(q);
+  if(p.get("view")==="delays"){show("delays");return}
   if(p.get("checkin")){
     const[date,leg,dep,train]=p.get("checkin").split("|"),from=leg==="ret"?cfg.to:cfg.from,to=leg==="ret"?cfg.from:cfg.to;
     show("today");openCheckin({date,leg,dep:Number(dep),train,from,to});
@@ -1056,6 +1104,7 @@ function renderNotif(){
     body=`<p class="status ok" style="margin:0 0 4px">Notifications are on</p>
     <label class="switch"><div><b>Morning alert</b><span>${hasUsual?`40 min before your usual train (${[cfg.u1,cfg.u2].filter(Boolean).join(", ")}) if it's late or cancelled`:"Add your usual trains above to use this"}</span></div><input type="checkbox" id="usualToggle" ${push.usual?"checked":""} ${hasUsual?"":"disabled"}></label>
     <label class="switch"><div><b>Late-train check-in</b><span>When a train in your time windows runs 18+ min late, ask if you're on it. If you check in and it arrives 20+ min late, your claim is ready to sign.</span></div><input type="checkbox" id="watchToggle" ${push.watch?"checked":""}></label>
+    <label class="switch"><div><b>Friday summary</b><span>At 16:00 on Fridays: how much your late trains this week are worth, in pizzas and beers</span></div><input type="checkbox" id="fridayToggle" ${push.friday?"checked":""}></label>
     <label class="switch"><div><b>Evening check</b><span>At ${esc(cfg.r1)}, if a morning train in your window was 20+ min late</span></div><input type="checkbox" id="morningToggle" ${push.morning?"checked":""}></label>
     <label class="switch"><div><b>Ticket reminder</b><span>${hasTicket?"Two days before your 30-day ticket runs out":"Add the date your ticket is valid until above"}</span></div><input type="checkbox" id="ticketToggle" ${push.ticket?"checked":""} ${hasTicket?"":"disabled"}></label>
     <div class="row" style="margin-top:12px"><button class="btn small ghost" id="notifTest" type="button">Send a test</button><button class="btn small ghost" id="notifDelete" type="button">Turn off and delete my data</button></div>`;
@@ -1078,12 +1127,12 @@ async function subscribe(p,silent){
     const{key}=await api("/vapid");
     sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(key)});
   }
-  const cfgOut={from:cfg.from,to:cfg.to,o1:cfg.o1,o2:cfg.o2,r1:cfg.r1,r2:cfg.r2,type:cfg.type,price:cfg.price,factor:FACTOR,watch:!!p.watch};
+  const cfgOut={from:cfg.from,to:cfg.to,o1:cfg.o1,o2:cfg.o2,r1:cfg.r1,r2:cfg.r2,type:cfg.type,price:cfg.price,factor:FACTOR,watch:!!p.watch,friday:!!p.friday,payout:cfg.payout};
   const{id}=await post("/subscribe",{sub:sub.toJSON(),cfg:cfgOut,morning:!!p.morning,checks:checksFor(p)});
-  push={id,morning:!!p.morning,usual:!!p.usual,ticket:!!p.ticket,watch:!!p.watch};store.set("kv-push",push);
+  push={id,morning:!!p.morning,usual:!!p.usual,ticket:!!p.ticket,watch:!!p.watch,friday:!!p.friday};store.set("kv-push",push);
 }
 async function turnOnNotifications(){
-  await subscribe({usual:!!(cfg.u1||cfg.u2),ticket:cfg.type==="30"&&!!cfg.exp,watch:true},false);
+  await subscribe({usual:!!(cfg.u1||cfg.u2),ticket:cfg.type==="30"&&!!cfg.exp,watch:true,friday:true},false);
   renderNotif();
   if(pendingAfterNotif&&pendingAfterNotif.type==="plan"){
     const p=pendingAfterNotif;pendingAfterNotif=null;show("today");openTool("night");
@@ -1179,7 +1228,9 @@ document.addEventListener("click",async e=>{
   if(b.id==="refresh"){loadBoard();if(nightActive())loadNightTrains();return}
   if(d.plan){const i=d.plan.lastIndexOf("|");togglePlan(d.plan.slice(0,i),d.plan.slice(i+1));return}
   if(d.clock){moveClock(Number(d.clock));return}
-  if(d.newticket||b.id==="newTicket"){logTicket();return}
+  if(d.newticket||b.id==="newTicket"){openNewTicket();return}
+  if(b.id==="ntSave"){saveNewTicket();return}
+  if(d.more!=null){b.closest(".disrupt").classList.toggle("open");b.textContent=b.closest(".disrupt").classList.contains("open")?"Show less":"Read more";return}
   if(d.p){period=d.p;renderDelays();return}
   if(d.payout){cfg.payout=d.payout;store.set("kv-cfg",cfg);renderDelays();return}
   if(b.id==="unlock"){unlocked=true;store.set("kv-unlocked",true);renderDelays();return}
@@ -1231,8 +1282,8 @@ document.addEventListener("change",async e=>{
     renderNight();return;
   }
   if(t.dataset&&t.dataset.amt){const c=claims[t.dataset.amt];if(c){c.amt=Number(t.value||0);store.set("kv-claims",claims);renderDelays()}return}
-  if(t.id==="usualToggle"||t.id==="ticketToggle"||t.id==="morningToggle"||t.id==="watchToggle"){
-    const key={usualToggle:"usual",ticketToggle:"ticket",morningToggle:"morning",watchToggle:"watch"}[t.id];
+  if(t.id==="usualToggle"||t.id==="ticketToggle"||t.id==="morningToggle"||t.id==="watchToggle"||t.id==="fridayToggle"){
+    const key={usualToggle:"usual",ticketToggle:"ticket",morningToggle:"morning",watchToggle:"watch",fridayToggle:"friday"}[t.id];
     try{await subscribe(Object.assign({},push,{[key]:t.checked}),true);$("#notifMsg").textContent="Saved."}catch(err){t.checked=!t.checked;$("#notifMsg").textContent=err.message}
   }
 });

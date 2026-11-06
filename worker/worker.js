@@ -301,6 +301,41 @@ async function arrivalCheck(env) {
   }
 }
 
+// Friday 16:00: what this week's late trains in the user's windows are worth, in pizzas and beers
+const PIZZA_KR = 120, BEER_KR = 75;
+async function fridaySummary(env) {
+  const now = Date.now(), lp = localParts(now);
+  if (lp.weekday !== "Fri" || lp.hm !== "16:00") return;
+  const d = await db(env);
+  const users = (await d.prepare("SELECT * FROM users WHERE cfg LIKE '%\"friday\":true%'").all()).results;
+  if (!users.length) return;
+  const doc = await fetch(DELAYS_URL, { cf: { cacheTtl: 120 } }).then(r => r.json()).catch(() => null);
+  if (!doc) return;
+  const days = [0, 1, 2, 3, 4].map(k => new Date(Date.parse(lp.date + "T12:00:00Z") - k * 86400000).toISOString().slice(0, 10));
+  for (const u of users) {
+    const c = JSON.parse(u.cfg || "{}");
+    const trip = (c.type === "single" ? Number(c.price || 0) : Number(c.price || 0) / Math.max(1, Number(c.factor || 20))) * (c.payout === "code" ? 1.5 : 1);
+    let kr = 0, late = 0;
+    for (const day of days) for (const [f, t, lo, hi] of [[c.from, c.to, c.o1, c.o2], [c.to, c.from, c.r1, c.r2]]) {
+      const fi = doc.stops.indexOf(f), ti = doc.stops.indexOf(t);
+      if (fi < 0 || ti < 0 || !lo || !hi) continue;
+      let worst = 0;
+      for (const tr of doc.trains) {
+        if (tr.d !== day) continue;
+        const a = tr.s.find(x => x[0] === fi), b = tr.s.find(x => x[0] === ti);
+        if (!a || !b || b[1] <= a[1] || a[1] < toMin(lo) || a[1] > toMin(hi)) continue;
+        const dl = tr.c ? 60 : b[2];
+        worst = Math.max(worst, dl >= 60 ? 100 : dl >= 40 ? 75 : dl >= 20 ? 50 : 0);
+      }
+      if (worst) { late++; kr += trip * worst / 100; }
+    }
+    if (!kr) continue;
+    const one = n => (Math.round(n * 10) / 10).toString();
+    await push(env, u.id, u.sub, `This week's delays: up to ${Math.round(kr)} kr`,
+      `${late} of your trips had a train 20+ min late. That's ${one(kr / PIZZA_KR)} pizzas or ${one(kr / BEER_KR)} beers. Claim the ones you were on in Backtrack.`, "view=delays").catch(() => {});
+  }
+}
+
 // ---------- automatic deletion (data minimisation) ----------
 // - reminders: deleted 1 hour after they were due
 // - messages: deleted after 24 hours
@@ -311,7 +346,7 @@ async function cleanup(env) {
   await d.batch([
     d.prepare("DELETE FROM reminders WHERE due < ?").bind(now - H),
     d.prepare("DELETE FROM msgs WHERE at < ?").bind(now - 24 * H),
-    d.prepare("DELETE FROM users WHERE morning=0 AND cfg NOT LIKE '%\"watch\":true%' AND updated < ? AND id NOT IN (SELECT uid FROM reminders WHERE sent=0) AND id NOT IN (SELECT uid FROM checks) AND id NOT IN (SELECT uid FROM checkins)").bind(now - 6 * H),
+    d.prepare("DELETE FROM users WHERE morning=0 AND cfg NOT LIKE '%\"watch\":true%' AND cfg NOT LIKE '%\"friday\":true%' AND updated < ? AND id NOT IN (SELECT uid FROM reminders WHERE sent=0) AND id NOT IN (SELECT uid FROM checks) AND id NOT IN (SELECT uid FROM checkins)").bind(now - 6 * H),
     d.prepare("DELETE FROM users WHERE updated < ?").bind(now - 30 * 24 * H),
     d.prepare("DELETE FROM msgs WHERE uid NOT IN (SELECT id FROM users)"),
     d.prepare("DELETE FROM checks WHERE uid NOT IN (SELECT id FROM users)"),
@@ -347,7 +382,7 @@ export default {
         const b = await req.json();
         if (!b.sub || !b.sub.endpoint) return json({ error: "missing subscription" }, 400);
         const id = await idFor(b.sub.endpoint), raw = b.cfg || {};
-        const c = {}; for (const k of ["from", "to", "o1", "o2", "r1", "r2", "type", "price", "factor", "watch"]) if (raw[k] != null) c[k] = raw[k];
+        const c = {}; for (const k of ["from", "to", "o1", "o2", "r1", "r2", "type", "price", "factor", "watch", "friday", "payout"]) if (raw[k] != null) c[k] = raw[k];
         await (await db(env)).prepare("INSERT INTO users (id, sub, cfg, morning, r1, updated) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sub=excluded.sub, cfg=excluded.cfg, morning=excluded.morning, r1=excluded.r1, updated=excluded.updated")
           .bind(id, JSON.stringify({ endpoint: b.sub.endpoint, keys: b.sub.keys || {} }), JSON.stringify(c), b.morning ? 1 : 0, c.r1 || null, Date.now()).run();
         // morning alerts and ticket reminders: replace this user's checks
@@ -445,7 +480,7 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    const jobs = [sendDueReminders(env), morningCheck(env), runChecks(env), arrivalCheck(env)];
+    const jobs = [sendDueReminders(env), morningCheck(env), runChecks(env), arrivalCheck(env), fridaySummary(env)];
     if (new Date(event.scheduledTime).getUTCMinutes() % 2 === 0) jobs.push(watchLate(env));
     if (new Date(event.scheduledTime).getUTCMinutes() % 15 === 0) jobs.push(cleanup(env));
     ctx.waitUntil(Promise.all(jobs));
