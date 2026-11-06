@@ -100,6 +100,18 @@ input.sw:checked::after{transform:translateX(20px);background:#fff}
 .notice{background:var(--warn-bg);border-radius:12px;padding:10px 12px;font-size:13.5px}
 .alerts{border-color:#5a3c1c}
 
+#nightCard{padding:16px 18px}
+#nightCard h2{font-size:17px;line-height:1.3}
+.miniclock{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:12px 0 0;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:6px}
+.miniclock button{border:0;background:var(--soft);color:var(--ink);min-width:44px;height:36px;border-radius:10px;font-weight:600;font-size:13px;padding:0 8px}
+.miniclock .tm{font-family:var(--display);font-weight:600;font-size:26px;font-variant-numeric:tabular-nums;text-align:center;flex:1;line-height:1}
+.miniclock .tm small{display:block;font-family:inherit;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em;margin-bottom:3px}
+#nightTrains{gap:6px;margin-top:10px}
+#nightTrains .tr{padding:8px 10px;border-radius:12px;gap:10px}
+#nightTrains .tr .t{font-size:16px}
+#nightTrains .info{font-size:12.5px;display:flex;gap:8px;align-items:center}
+#nightTrains .info .tag{margin:0}
+#nightTrains .pick{padding:6px 10px;min-height:34px;font-size:13px;border-radius:10px}
 .clock{display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0 2px}
 .clock .col{display:grid;justify-items:center;gap:4px}
 .clock .digits{font-family:var(--display);font-weight:600;font-size:54px;line-height:1;font-variant-numeric:tabular-nums;min-width:80px;text-align:center}
@@ -450,21 +462,17 @@ function nightTimeToLocal(min){
 function renderNight(){
   const c=$("#nightCard"),work=cfg.to;
   if(!nightActive()&&isEvening()&&store.get("kv-night-skip","")!==localDate()){night={date:localDate(),min:timeOptions()[0],auto:true,plans:[]};store.set("kv-night",night)}
-  const head=`<label class="nighthead"><h2 style="margin:0">Going out in ${esc(city(work))} tonight?</h2><input type="checkbox" class="sw" id="nightToggle" ${nightActive()?"checked":""} aria-label="Going out tonight"></label>`;
-  if(!nightActive()){
-    c.innerHTML=`${head}<p class="muted small" style="margin:8px 0 0">Switch on to pick when you're heading home. Backtrack reminds you before your train leaves and warns you if it's late or cancelled.</p>`;
-    return;
-  }
+  const head=`<label class="nighthead"><div><h2 style="margin:0">Want travel reminders tonight?</h2><span class="small muted">${nightActive()?`Trains from ${esc(city(work))} to ${esc(city(cfg.from))}`:"Get reminded before your train home, and warned if it's late."}</span></div><input type="checkbox" class="sw" id="nightToggle" ${nightActive()?"checked":""} aria-label="Travel reminders tonight"></label>`;
+  if(!nightActive()){c.innerHTML=head;return}
   night.plans=night.plans||[];
   const o=timeOptions();if(!o.includes(Number(night.min)))night.min=o[0];
   c.innerHTML=`${head}
-    <p class="small muted center" style="margin:14px 0 0">I want to head home around</p>
-    <div class="clock" role="group" aria-label="Time to head home">
-      <div class="col"><button type="button" data-clock="60" aria-label="One hour later">${ICON.up}</button><div class="digits" id="clockH"></div><button type="button" data-clock="-60" aria-label="One hour earlier">${ICON.dn}</button></div>
-      <div class="sep">:</div>
-      <div class="col"><button type="button" data-clock="15" aria-label="15 minutes later">${ICON.up}</button><div class="digits" id="clockM"></div><button type="button" data-clock="-15" aria-label="15 minutes earlier">${ICON.dn}</button></div>
+    <div class="miniclock" role="group" aria-label="Time to head home">
+      <button type="button" data-clock="-60" aria-label="One hour earlier">−1h</button><button type="button" data-clock="-15" aria-label="15 minutes earlier">−15</button>
+      <div class="tm"><small>LEAVING AROUND</small><span id="clockH"></span>:<span id="clockM"></span></div>
+      <button type="button" data-clock="15" aria-label="15 minutes later">+15</button><button type="button" data-clock="60" aria-label="One hour later">+1h</button>
     </div>
-    <div id="nightPlan" class="small" style="margin-top:12px"></div>
+    <div id="nightPlan" class="small" style="margin-top:8px"></div>
     <div id="nightTrains" class="trains"><p class="small muted">Loading trains…</p></div>`;
   showClock();renderPlanStatus();loadNightTrains();
 }
@@ -481,18 +489,24 @@ async function loadNightTrains(){
   try{
     const{trains}=await api(`/trains?from=${encodeURIComponent(cfg.to)}&to=${encodeURIComponent(cfg.from)}&time=${encodeURIComponent(nightTimeToLocal(Number(night.min)))}`);
     if(req!==nightReq)return;
-    nightList=trains.slice(0,6);drawNightTrains();
+    nightList=trains.slice(0,3);drawNightTrains();
   }catch(e){if(req===nightReq)el.innerHTML=`<p class="notice">Couldn't load trains. ${esc(e.message)}</p>`}
+}
+function nightRow(t){
+  const dep=t.sched.slice(11,16),sel=(night.plans||[]).some(p=>p.sched===t.sched&&p.train===t.train);
+  const st=t.canceled?`<span class="tag c">Cancelled</span>`:t.delay>0?`<span class="tag ${t.delay>=20?"l50":""}">+${t.delay}</span>`:"";
+  return`<div class="tr${sel?" sel":""}"><div class="t">${dep}</div><div class="info">${t.platform?`Track ${esc(t.platform)}`:""} ${st}</div>
+    ${t.canceled?"<span></span>":`<button class="pick" type="button" data-plan="${esc(t.sched)}|${esc(t.train)}" aria-pressed="${sel}">${sel?"Reminding ✓":"Remind me"}</button>`}</div>`;
 }
 function drawNightTrains(){
   const el=$("#nightTrains");if(!el)return;
-  el.innerHTML=nightList.length?nightList.map(t=>trainRow(t,"night")).join(""):`<p class="small muted">No trains found around that time.</p>`;
+  el.innerHTML=nightList.length?nightList.map(nightRow).join(""):`<p class="small muted">No trains found around that time.</p>`;
 }
 function renderPlanStatus(){
   const el=$("#nightPlan");if(!el)return;
   const p=night.plans||[];
-  el.innerHTML=p.length?`<span class="status ok">Reminders on for ${p.map(x=>x.sched.slice(11,16)).sort().join(" and ")}</span> <span class="muted">· 60, 30 and 15 min before each leaves</span>`
-    :`<span class="muted">Tap <b>Remind me</b> on the trains you might take. You can pick more than one.</span>`;
+  el.innerHTML=p.length?`<span class="status ok">Reminders on for ${p.map(x=>x.sched.slice(11,16)).sort().join(" and ")}</span> <span class="muted">· 60, 30 and 15 min before</span>`
+    :"";
 }
 let planSync=Promise.resolve();
 function togglePlan(sched,train){
