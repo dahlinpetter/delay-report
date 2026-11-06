@@ -1,12 +1,12 @@
 {
-  "name": "Bro",
-  "short_name": "Bro",
+  "name": "Backtrack",
+  "short_name": "Backtrack",
   "description": "Your Öresund commuting companion",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#e9f7ef",
-  "theme_color": "#0b3b2c",
+  "background_color": "#f3faf6",
+  "theme_color": "#d6f2e2",
   "icons": [
     {
       "src": "icons/icon-192.png",

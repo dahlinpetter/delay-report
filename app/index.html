@@ -3,40 +3,39 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Bro</title>
+<title>Backtrack</title>
 <meta name="description" content="Your Öresund commuting companion: live trains, reminders for the last train home, and a log of delayed trips.">
-<meta name="theme-color" content="#0f3d2e">
+<meta name="theme-color" content="#d6f2e2">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap">
 <style>
 :root{
-  /* Bright mint ground, deep forest actions, fresh green highlights */
-  --bg:#e9f7ef;--card:#ffffff;--ink:#0b2a1f;--muted:#4c675c;--line:#d2e9dc;
-  --brand:#0b3b2c;--accent:#20c46c;--accent-ink:#ffffff;--soft:#ddf3e6;
+  /* Backtrack: a single bright theme. Airy mint ground, white surfaces, deep forest actions */
+  --bg:#f3faf6;--card:#ffffff;--ink:#0d2a20;--muted:#5a7368;--line:#e1efe7;
+  --brand:#0b3b2c;--accent:#1fb866;--accent-ink:#ffffff;--soft:#e8f6ee;
   --action:#0b3b2c;--action-ink:#ffffff;
-  --l50:#e9a23b;--l75:#e2703a;--l100:#d2453d;--warn-bg:#fdf3e4;
-  --display:"Bricolage Grotesque",system-ui,sans-serif;--body:"Inter",system-ui,sans-serif;
+  --l50:#e9a23b;--l75:#e2703a;--l100:#d2453d;--warn-bg:#fff6e8;
+  --shadow:0 1px 2px rgba(11,59,44,.05),0 10px 30px rgba(11,59,44,.07);
+  --display:"Manrope",system-ui,sans-serif;--body:"Inter",system-ui,sans-serif;
+  color-scheme:light;
 }
-@media (prefers-color-scheme:dark){:root{
-  --bg:#07130e;--card:#0f1f18;--ink:#e6f3ec;--muted:#93ada2;--line:#1f3429;
-  --brand:#7be3a8;--accent:#2fd27c;--accent-ink:#04140b;--soft:#14301f;--warn-bg:#2a2214;
-  --action:#2fd27c;--action-ink:#04140b;color-scheme:dark}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
-header{position:sticky;top:0;z-index:5;overflow:hidden;color:var(--brand);background:var(--sky,linear-gradient(180deg,#c6efd8,#e9f7ef));padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 18px max(16px,env(safe-area-inset-left,0px))}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--body);-webkit-font-smoothing:antialiased;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+header{position:sticky;top:0;z-index:5;overflow:hidden;color:var(--brand);background:var(--sky,linear-gradient(180deg,#d6f2e2,#f3faf6));padding:calc(14px + env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) 22px max(20px,env(safe-area-inset-left,0px))}
 header .skymedia{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
 header .hrow{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px}
-header .span{position:absolute;left:0;right:0;bottom:0;width:100%;height:46px;z-index:1;color:currentColor;opacity:.22}
+header .span{position:absolute;left:0;right:0;bottom:0;width:100%;height:40px;z-index:1;color:currentColor;opacity:.12}
 header.dark{color:#fff}
 header.dark .span{opacity:.35}
-.logo{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:-.03em;line-height:1}
-.logo svg{width:34px;height:20px}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:23px;letter-spacing:-.02em;line-height:1}
+.logo svg{width:32px;height:32px;flex:none}
+header{--logo-gap:#e6f6ec}
 .logo i{color:var(--accent);font-style:normal}
 .route{font-size:13px;opacity:.8;text-align:right}
 .alerts{border-left:4px solid var(--l75)}
@@ -48,36 +47,36 @@ header.dark .span{opacity:.35}
 .toggle{display:flex;gap:10px;align-items:flex-start;font-weight:500;margin-top:10px}
 .toggle input{width:auto;margin-top:3px}
 main{max-width:560px;margin:0 auto;padding:4px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));display:grid;gap:14px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
-h2{font-family:var(--display);font-weight:800;font-size:21px;line-height:1.2;margin:0 0 4px;letter-spacing:-.01em;text-wrap:balance}
-h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+.card{background:var(--card);border:0;border-radius:22px;padding:20px;box-shadow:var(--shadow)}
+h2{font-family:var(--display);font-weight:700;font-size:22px;line-height:1.2;margin:0 0 4px;letter-spacing:-.01em;text-wrap:balance}
+h3{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
 p{margin:0 0 10px}
 .muted{color:var(--muted)}.small{font-size:13px}
 button{font:inherit;cursor:pointer}
-.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:600;background:var(--action);color:var(--action-ink)}
-.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
-.btn.small{padding:7px 12px;font-size:13px;border-radius:10px}
+.btn{border:0;border-radius:14px;padding:14px 18px;min-height:48px;font-weight:600;background:var(--action);color:var(--action-ink)}
+.btn.ghost{background:var(--soft);color:var(--brand);border:0}
+.btn.small{padding:9px 14px;font-size:14px;border-radius:12px;min-height:40px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.seg{display:flex;background:var(--soft);border-radius:12px;padding:3px;gap:3px}
-.seg button{flex:1;border:0;background:transparent;color:var(--ink);padding:8px 6px;border-radius:9px;font-size:13px;font-weight:500}
+.seg{display:flex;background:var(--soft);border-radius:14px;padding:4px;gap:4px}
+.seg button{flex:1;border:0;background:transparent;color:var(--ink);padding:10px 6px;min-height:40px;border-radius:11px;font-size:13px;font-weight:500}
 .seg button[aria-selected="true"]{background:var(--card);box-shadow:0 1px 3px #0000001f;font-weight:600}
-select,input{font:inherit;width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+select,input{font:inherit;width:100%;padding:12px;min-height:48px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink)}
 label{display:grid;gap:4px;font-size:13px;font-weight:600}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .trains{display:grid;gap:6px;margin-top:10px}
-.tr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
+.tr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:#fff}
 .tr.sel{border-color:var(--accent);background:var(--soft)}
-.tr .t{font-family:var(--display);font-weight:800;font-size:18px;font-variant-numeric:tabular-nums}
+.tr .t{font-family:var(--display);font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
 .tr .t s{font-weight:600;font-size:13px;color:var(--muted);margin-right:4px}
 .tr .info{font-size:13px;color:var(--muted);min-width:0;overflow-wrap:anywhere}
 .tr .info b{color:var(--ink);font-weight:600}
 .tag{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:1px 8px;background:var(--soft);color:var(--ink)}
 .tag.l50{background:var(--l50);color:#1d1205}.tag.l75{background:var(--l75);color:#fff}.tag.l100{background:var(--l100);color:#fff}.tag.c{background:var(--l100);color:#fff}
 .notice{background:var(--warn-bg);border-radius:12px;padding:10px 12px;font-size:13px}
-.big{font-family:var(--display);font-weight:800;font-size:40px;line-height:1;color:var(--brand);font-variant-numeric:tabular-nums}
+.big{font-family:var(--display);font-weight:700;font-size:40px;line-height:1;color:var(--brand);font-variant-numeric:tabular-nums}
 .big small{font-size:18px;margin-left:4px}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
-.stat{background:var(--soft);border-radius:12px;padding:8px 10px}
+.stat{background:var(--soft);border-radius:16px;padding:12px}
 .stat b{display:block;font-family:var(--display);font-size:20px;font-variant-numeric:tabular-nums}
 .stat span{font-size:12px;color:var(--muted)}
 .day{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
@@ -85,7 +84,7 @@ label{display:grid;gap:4px;font-size:13px;font-weight:600}
 .dayhead b{font-size:15px}
 .status{font-size:13px}
 .status.ok{color:var(--accent);font-weight:600}
-.pick{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:6px 10px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.pick{border:1px solid var(--line);background:#fff;color:var(--brand);border-radius:12px;padding:9px 12px;min-height:40px;font-size:13px;font-weight:600;white-space:nowrap}
 .pick[aria-pressed="true"]{background:var(--action);color:var(--action-ink);border-color:var(--action)}
 .claim{margin-top:8px;background:var(--soft);border-radius:12px;padding:12px;display:grid;gap:6px;font-size:13px}
 .cf{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:8px;align-items:center}
@@ -93,25 +92,24 @@ label{display:grid;gap:4px;font-size:13px;font-weight:600}
 .lock{position:relative}
 .paywall{text-align:center;display:grid;gap:8px;justify-items:center}
 .disclaimer{font-size:12.5px;color:var(--muted);border-left:3px solid var(--accent);padding-left:10px}
-nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(255,255,255,.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
 nav .in{display:flex;max-width:560px;width:100%}
 nav button{flex:1;border:0;background:transparent;color:var(--muted);padding:6px 0;font-size:12px;font-weight:600;display:grid;justify-items:center;gap:2px}
 nav button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
-nav button[aria-selected="true"]{color:var(--accent)}
-.install{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--brand);color:#fff;border-radius:16px;padding:14px}
-@media (prefers-color-scheme:dark){.install{background:#1f4a39}}
+nav button[aria-selected="true"]{color:var(--brand)}
+.install{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;background:#fff;color:var(--ink);border-radius:22px;padding:16px;box-shadow:var(--shadow);border:1px solid #cdebd9}
 .install img{width:44px;height:44px;border-radius:11px}
 .install b{display:block;font-size:15px}
-.install span{font-size:13px;opacity:.9}
-.install button{border:0;background:transparent;color:#fff;font-size:20px;line-height:1;padding:4px}
-.install .go{background:var(--accent);color:var(--accent-ink);border-radius:10px;font-size:14px;font-weight:600;padding:8px 12px}
+.install span{font-size:13.5px;color:var(--muted)}
+.install button{border:0;background:transparent;color:var(--muted);font-size:20px;line-height:1;padding:4px}
+.install .go{background:var(--action);color:var(--action-ink);border-radius:10px;font-size:14px;font-weight:600;padding:8px 12px}
 .install.big{display:grid;grid-template-columns:1fr;gap:12px;padding:18px}
 .install .ihead{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center}
 .install .ihead img{width:56px;height:56px;border-radius:14px}
 .install .ihead b{font-family:var(--display);font-size:20px;font-weight:800;margin-bottom:2px}
 .isteps{margin:0;padding:0;list-style:none;counter-reset:s;display:grid;gap:8px}
-.isteps li{counter-increment:s;display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:center;font-size:14px;background:#ffffff1a;border-radius:10px;padding:8px 10px}
-.isteps li::before{content:counter(s);width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;font-size:13px}
+.isteps li{counter-increment:s;display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:center;font-size:14px;background:var(--soft);border-radius:14px;padding:10px 12px}
+.isteps li::before{content:counter(s);width:24px;height:24px;border-radius:50%;background:var(--action);color:var(--action-ink);display:grid;place-items:center;font-weight:700;font-size:13px}
 .install .go.wide{width:100%;padding:12px}
 .isteps .it{font-size:14px;opacity:1;line-height:1.4}
 .isteps .it b{display:inline;font-size:14px;font-weight:700}
@@ -128,7 +126,7 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px
   <div id="skymedia"></div>
   <svg class="span" viewBox="0 0 400 46" preserveAspectRatio="xMidYMax slice" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M0 38h400"/><path d="M140 4v40M260 4v40M138 4h4M258 4h4"/><path d="M140 8 60 38M140 8 80 38M140 8 100 38M140 8 120 38M140 8l20 30M140 8l40 30M140 8l60 30M260 8l-60 30M260 8l-40 30M260 8l-20 30M260 8l20 30M260 8l40 30M260 8l60 30M260 8l80 30"/><path d="M0 44h400" stroke-width="5"/></svg>
   <div class="hrow">
-    <div class="logo"><svg viewBox="0 0 68 40" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M2 30h64M22 6v28M46 6v28M22 8 6 30M22 8l-8 22M22 8l8 22M46 8 38 30M46 8l8 22M46 8l16 22"/></svg><span>bro<i>.</i></span></div>
+    <div class="logo"><svg viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M13 58V30a19 19 0 0 1 38 0v28" stroke-width="4"/><path d="M23 58V30a9 9 0 0 1 18 0v28" stroke-width="4"/><g stroke-width="2.8" opacity=".5"><path d="M10 52h16M10 44h16M10 36h16M38 52h16M38 44h16M38 36h16M13.5 24.5 22.3 27.5M19 15.5l6.6 7.2M32 11v9.6M45 15.5l-6.6 7.2M50.5 24.5 41.7 27.5"/></g><circle cx="32" cy="40" r="4.4" fill="var(--accent)" stroke="none"/></svg><span>backtrack</span></div>
     <div class="route" id="routeLabel"></div>
   </div>
 </header>
@@ -167,7 +165,7 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px
       <div class="stats" id="logStats"></div>
       <div id="log"></div>
     </div>
-    <p class="disclaimer">Bro shows delays from public traffic data. Only claim compensation for trips you actually made with a valid ticket. Amounts are estimates. Skånetrafiken assesses every claim.</p>
+    <p class="disclaimer">Backtrack shows delays from public traffic data. Only claim compensation for trips you actually made with a valid ticket. Amounts are estimates. Skånetrafiken assesses every claim.</p>
   </section>
 
   <!-- SETTINGS -->
@@ -208,19 +206,19 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px
     <div class="card" id="notifCard"></div>
     <div class="card">
       <h3>About</h3>
-      <p class="small">Train data from <a href="https://www.trafiklab.se" target="_blank" rel="noopener">Trafiklab.se</a> (CC-BY 4.0) and its KoDa archive. Bro is an independent service and is not affiliated with Skånetrafiken, Öresundståg or DSB.</p>
+      <p class="small">Train data from <a href="https://www.trafiklab.se" target="_blank" rel="noopener">Trafiklab.se</a> (CC-BY 4.0) and its KoDa archive. Backtrack is an independent service and is not affiliated with Skånetrafiken, Öresundståg or DSB.</p>
     </div>
     <div class="card" id="privacy">
       <h3>Privacy</h3>
-      <p class="small">Bro has no accounts and never asks for your name, email or phone number. Your commute, trip log and claims are stored only on this phone.</p>
-      <p class="small">If you turn on notifications, Bro's server stores your phone's push address and the stations and times it needs for your reminders. Nothing else.</p>
+      <p class="small">Backtrack has no accounts and never asks for your name, email or phone number. Your commute, trip log and claims are stored only on this phone.</p>
+      <p class="small">If you turn on notifications, Backtrack's server stores your phone's push address and the stations and times it needs for your reminders. Nothing else.</p>
       <ul class="small" style="margin:0 0 10px;padding-left:18px">
         <li>Night-out reminders are deleted an hour after the train has left.</li>
         <li>Without the evening check, everything is deleted within a few hours of your last reminder.</li>
-        <li>With the evening check, morning alert or ticket reminder on, your data is kept while you use Bro and deleted after 30 days without opening the app.</li>
+        <li>With the evening check, morning alert or ticket reminder on, your data is kept while you use Backtrack and deleted after 30 days without opening the app.</li>
         <li>"Turn off and delete my data" deletes everything immediately.</li>
       </ul>
-      <p class="small muted" style="margin:0">The server runs on Cloudflare and the app is hosted on GitHub, which process data on Bro's behalf. Questions or requests: contact details will be added here.</p>
+      <p class="small muted" style="margin:0">The server runs on Cloudflare and the app is hosted on GitHub, which process data on Backtrack's behalf. Questions or requests: contact details will be added here.</p>
     </div>
   </section>
 </main>
@@ -278,16 +276,17 @@ function renderSky(){
   const phase=Math.abs(now-set)<45*M?"sunset":Math.abs(now-rise)<40*M?"sunrise":(now>rise&&now<set)?"day":"night";
   if(phase===skyPhase)return;skyPhase=phase;
   const h=$("#sky"),grad={
-    day:"linear-gradient(180deg,#bdeccf 0%,#e9f7ef 100%)",
-    sunrise:"linear-gradient(180deg,#5b6aa8 0%,#e7a1a8 55%,#ffd9a8 100%)",
-    sunset:"linear-gradient(180deg,#2b2a5e 0%,#b5507a 45%,#f39a55 82%,#ffd08a 100%)",
-    night:"linear-gradient(180deg,#05141f 0%,#0b2a35 100%)"}[phase];
-  h.style.setProperty("--sky",grad);h.classList.toggle("dark",phase!=="day");
+    day:"linear-gradient(180deg,#d6f2e2 0%,#f3faf6 100%)",
+    sunrise:"linear-gradient(180deg,#fbe1d6 0%,#fdf0e3 60%,#f3faf6 100%)",
+    sunset:"linear-gradient(180deg,#f7c9b4 0%,#fbdcc2 45%,#fdeedd 75%,#f3faf6 100%)",
+    night:"linear-gradient(180deg,#dde5f2 0%,#eaf0f4 60%,#f3faf6 100%)"}[phase];
+  h.style.setProperty("--sky",grad);
   const media=$("#skymedia");
   if(phase==="sunset"&&SKY_VIDEO&&!matchMedia("(prefers-reduced-motion: reduce)").matches)
     media.innerHTML=`<video class="skymedia" src="${SKY_VIDEO}" autoplay muted loop playsinline></video>`;
   else media.innerHTML="";
-  document.querySelector('meta[name="theme-color"]').content=phase==="day"?"#bdeccf":phase==="night"?"#05141f":"#2b2a5e";
+  h.classList.toggle("dark",!!media.innerHTML);
+  document.querySelector('meta[name="theme-color"]').content={day:"#d6f2e2",sunrise:"#fbe1d6",sunset:"#f7c9b4",night:"#dde5f2"}[phase];
 }
 
 // ---------- views ----------
@@ -325,7 +324,7 @@ async function renderNight(){
   if(!nightActive()&&isEvening()&&store.get("kv-night-skip","")!==localDate()){night={date:localDate(),min:timeOptions()[0],auto:true};store.set("kv-night",night)}
   if(!nightActive()){
     c.innerHTML=`<h2>Going out in ${esc(city(work))} tonight?</h2>
-      <p class="muted small">Tell Bro roughly when you want to head home and it will remind you before your train leaves, and warn you if it's late or cancelled.</p>
+      <p class="muted small">Tell Backtrack roughly when you want to head home and it will remind you before your train leaves, and warn you if it's late or cancelled.</p>
       <div class="row"><button class="btn" id="nightYes" type="button">Yes, remind me</button><button class="btn ghost" id="nightNo" type="button">Not tonight</button></div>`;
     return;
   }
@@ -337,7 +336,7 @@ async function renderNight(){
   if(!night.min){night.min=defaultTime();store.set("kv-night",night)}
   $("#nightTime").value=night.min;
   renderPlanStatus();
-  if(!SERVER){$("#nightTrains").innerHTML=`<p class="notice">Live trains and reminders need Bro's server, which isn't set up yet.</p>`;return}
+  if(!SERVER){$("#nightTrains").innerHTML=`<p class="notice">Live trains and reminders need Backtrack's server, which isn't set up yet.</p>`;return}
   try{
     const{trains}=await api(`/trains?from=${encodeURIComponent(work)}&to=${encodeURIComponent(home)}&time=${encodeURIComponent(nightTimeToLocal(Number(night.min)))}`);
     const list=trains.filter(t=>!t.canceled||true).slice(0,6);
@@ -375,7 +374,7 @@ async function setPlan(sched,train){
 async function loadBoard(){
   const from=dir==="home"?cfg.to:cfg.from,to=dir==="home"?cfg.from:cfg.to;
   $("#dirSeg").innerHTML=`<button type="button" data-dir="home" aria-selected="${dir==="home"}">${esc(city(cfg.to))} → ${esc(city(cfg.from))}</button><button type="button" data-dir="work" aria-selected="${dir==="work"}">${esc(city(cfg.from))} → ${esc(city(cfg.to))}</button>`;
-  if(!SERVER){$("#board").innerHTML=`<p class="notice">Live trains need Bro's server, which isn't set up yet.</p>`;return}
+  if(!SERVER){$("#board").innerHTML=`<p class="notice">Live trains need Backtrack's server, which isn't set up yet.</p>`;return}
   try{
     const[{trains},other]=await Promise.all([api(`/trains?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),api(`/trains?from=${encodeURIComponent(to)}&to=${encodeURIComponent(from)}`).catch(()=>({trains:[]}))]);
     renderAlerts(trains.concat(other.trains||[]));
@@ -533,9 +532,9 @@ function renderNotif(){
   const c=$("#notifCard");
   const supported="serviceWorker"in navigator&&"PushManager"in window&&"Notification"in window;
   let body="";
-  if(isIOS&&!standalone)body=`<p class="notice">On iPhone, notifications only work when Bro is on your home screen. Tap the Share button in Safari, choose <b>Add to Home Screen</b>, then open Bro from there.</p>`;
+  if(isIOS&&!standalone)body=`<p class="notice">On iPhone, notifications only work when Backtrack is on your home screen. Tap the Share button in Safari, choose <b>Add to Home Screen</b>, then open Backtrack from there.</p>`;
   else if(!supported)body=`<p class="notice">This browser can't receive notifications. Try Safari on iPhone (from the home screen) or Chrome on Android.</p>`;
-  else if(!SERVER)body=`<p class="notice">Notifications need Bro's server, which isn't set up yet.</p>`;
+  else if(!SERVER)body=`<p class="notice">Notifications need Backtrack's server, which isn't set up yet.</p>`;
   else if(!push)body=`<p class="small muted">Get reminders before your train home, and a heads-up when a train you usually take was delayed.</p><button class="btn" id="notifOn" type="button">Turn on notifications</button>`;
   else body=`<p class="status ok" style="margin:0 0 10px">Notifications are on</p>
     <label class="toggle"><input type="checkbox" id="usualToggle" ${push.usual?"checked":""} ${cfg.u1||cfg.u2?"":"disabled"}>
@@ -589,7 +588,7 @@ document.addEventListener("click",async e=>{
   if(b.dataset.copy){const v=decodeURIComponent(b.dataset.copy);try{await navigator.clipboard.writeText(v);b.textContent="Copied ✓"}catch(_){b.textContent="Select it"}setTimeout(()=>b.textContent="Copy",1400);return}
   if(b.id==="notifOn"){try{await subscribe({},false);renderNotif();$("#notifMsg").textContent="Done. Try a test notification."}catch(err){$("#notifMsg").textContent="Couldn't turn on notifications: "+err.message}return}
   if(b.id==="notifDelete"){try{if(SERVER&&push)await api("/me?id="+push.id,{method:"DELETE"});const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub)await sub.unsubscribe();}catch(_){}
-    push=null;store.set("kv-push",null);if(night){night.plan=null;store.set("kv-night",night)}renderNotif();renderNight();$("#notifMsg").textContent="Notifications are off and your data has been deleted from Bro's server.";return}
+    push=null;store.set("kv-push",null);if(night){night.plan=null;store.set("kv-night",night)}renderNotif();renderNight();$("#notifMsg").textContent="Notifications are off and your data has been deleted from Backtrack's server.";return}
   if(b.id==="notifTest"){try{await api("/test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:push.id})});$("#notifMsg").textContent="Sent. It should arrive in a few seconds."}catch(err){$("#notifMsg").textContent="Couldn't send: "+err.message}return}
 });
 document.addEventListener("change",async e=>{
@@ -617,16 +616,16 @@ function renderInstall(){
   const plus='<svg viewBox="0 0 24 24" width="18" height="18" style="vertical-align:-3px" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>';
   if(small){
     el.className="install";
-    el.innerHTML=`<img src="icons/icon-192.png" alt=""><div><b>Get the Bro app</b><span>Add it to your home screen for reminders.</span></div><button class="go" id="installShow" type="button">How</button>`;
+    el.innerHTML=`<img src="icons/icon-192.png" alt=""><div><b>Get the Backtrack app</b><span>Add it to your home screen for reminders.</span></div><button class="go" id="installShow" type="button">How</button>`;
     el.hidden=false;return;
   }
   const steps=isIOS
-    ?[`Tap ${share} <b>Share</b> at the bottom of Safari`,`Scroll down and tap ${plus} <b>Add to Home Screen</b>`,`Open <b>Bro</b> from your home screen`]
+    ?[`Tap ${share} <b>Share</b> at the bottom of Safari`,`Scroll down and tap ${plus} <b>Add to Home Screen</b>`,`Open <b>Backtrack</b> from your home screen`]
     :deferredInstall?null
-    :[`Open the browser menu <b>⋮</b>`,`Tap <b>Install app</b> or <b>Add to Home screen</b>`,`Open <b>Bro</b> from your home screen`];
+    :[`Open the browser menu <b>⋮</b>`,`Tap <b>Install app</b> or <b>Add to Home screen</b>`,`Open <b>Backtrack</b> from your home screen`];
   el.className="install big";
-  el.innerHTML=`<div class="ihead"><img src="icons/icon-192.png" alt=""><div><b>Get Bro on your home screen</b><span>It works like a real app: full screen, one tap away, and with reminders before your last train home.</span></div></div>
-    ${steps?`<ol class="isteps">${steps.map(t=>`<li><span class="it">${t}</span></li>`).join("")}</ol>`:`<button class="go wide" id="installGo" type="button">Install Bro</button>`}
+  el.innerHTML=`<div class="ihead"><img src="icons/icon-192.png" alt=""><div><b>Get Backtrack on your home screen</b><span>It works like a real app: full screen, one tap away, and with reminders before your last train home.</span></div></div>
+    ${steps?`<ol class="isteps">${steps.map(t=>`<li><span class="it">${t}</span></li>`).join("")}</ol>`:`<button class="go wide" id="installGo" type="button">Install Backtrack</button>`}
     <button class="ilater" id="installHide" type="button">Continue in the browser</button>`;
   el.hidden=false;
 }

@@ -1,4 +1,4 @@
-// Bro server (Cloudflare Worker)
+// Backtrack server (Cloudflare Worker)
 // - keeps the Trafiklab key secret and serves live departures
 // - stores push subscriptions and reminder plans in D1
 // - every minute: sends due train reminders and the evening "morning train was late" check
@@ -162,7 +162,7 @@ async function runChecks(env) {
     if (c.kind === "ticket") {
       const end = new Date(c.dep + "T12:00:00Z");
       const when = end.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" });
-      await push(env, c.uid, c.sub, "Your 30-day ticket runs out soon", `It's valid until ${when}. Buy a new one in Skånetrafiken's app, then tap "I bought a new ticket" in Bro.`).catch(() => {});
+      await push(env, c.uid, c.sub, "Your 30-day ticket runs out soon", `It's valid until ${when}. Buy a new one in Skånetrafiken's app, then tap "I bought a new ticket" in Backtrack.`).catch(() => {});
       continue;
     }
     if (!weekday) continue;
@@ -207,7 +207,7 @@ async function morningCheck(env) {
     const pct = w.delay >= 60 ? 100 : w.delay >= 40 ? 75 : 50;
     const what = w.c ? `the ${fmt(w.dep)} was cancelled` : `the ${fmt(w.dep)} arrived ${w.delay} min late`;
     await push(env, u.id, u.sub, "Delay on your morning commute",
-      `This morning ${what} at ${c.to}. Were you on it? Mark it in Bro. If so, you may be entitled to about ${Math.round(trip * pct / 100)} kr.`).catch(() => {});
+      `This morning ${what} at ${c.to}. Were you on it? Mark it in Backtrack. If so, you may be entitled to about ${Math.round(trip * pct / 100)} kr.`).catch(() => {});
   }
 }
 
@@ -305,14 +305,14 @@ export default {
 
       if (p === "/msg") {
         const m = await (await db(env)).prepare("SELECT title, body FROM msgs WHERE uid=?").bind(url.searchParams.get("id")).first();
-        return json(m || { title: "Bro", body: "Open Bro for the latest train info." });
+        return json(m || { title: "Backtrack", body: "Open Backtrack for the latest train info." });
       }
 
       if (p === "/test" && req.method === "POST") {
         const b = await req.json();
         const u = await (await db(env)).prepare("SELECT * FROM users WHERE id=?").bind(b.id).first();
         if (!u) return json({ error: "not subscribed" }, 400);
-        const status = await push(env, u.id, u.sub, "Bro notifications are on", "You'll get train reminders here.").catch(e => "failed: " + e.message);
+        const status = await push(env, u.id, u.sub, "Backtrack notifications are on", "You'll get train reminders here.").catch(e => "failed: " + e.message);
         return json({ status });
       }
 
