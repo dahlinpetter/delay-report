@@ -638,7 +638,14 @@ document.addEventListener("click",async e=>{
 window.addEventListener("appinstalled",()=>{$("#install").hidden=true});
 
 // ---------- start ----------
-if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+// Updates: check for a new version whenever the app is opened or brought back, and reload once it's installed
+if("serviceWorker"in navigator){
+  navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(reg=>{
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden)reg.update().catch(()=>{})});
+  }).catch(()=>{});
+  let reloaded=false,hadController=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{if(hadController&&!reloaded){reloaded=true;location.reload()}});
+}
 if(night&&night.date!==localDate()){night=null;store.set("kv-night",null)}
 fillForm();renderInstall();
 fetch("config.json",{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({})).then(c=>{
