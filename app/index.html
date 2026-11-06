@@ -75,6 +75,11 @@ input[type=time],input[type=date]{min-width:0;display:block}
 .switch input:checked{background:var(--action);border-color:var(--action)}
 .switch input:checked::after{transform:translateX(20px);background:#fff}
 .switch input:disabled{opacity:.4}
+.nighthead{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;cursor:pointer}
+input.sw{appearance:none;-webkit-appearance:none;width:52px;height:32px;min-height:0;padding:0;border-radius:999px;background:var(--soft);border:1px solid var(--line);position:relative;cursor:pointer;transition:background .15s}
+input.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#cfe0f1;transition:transform .15s}
+input.sw:checked{background:var(--action);border-color:var(--action)}
+input.sw:checked::after{transform:translateX(20px);background:#fff}
 
 .trains{display:grid;gap:8px;margin-top:12px}
 .tr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:var(--card2);transition:border-color .12s,background .12s}
@@ -402,15 +407,14 @@ function nightTimeToLocal(min){
 function renderNight(){
   const c=$("#nightCard"),work=cfg.to;
   if(!nightActive()&&isEvening()&&store.get("kv-night-skip","")!==localDate()){night={date:localDate(),min:timeOptions()[0],auto:true,plans:[]};store.set("kv-night",night)}
+  const head=`<label class="nighthead"><h2 style="margin:0">Going out in ${esc(city(work))} tonight?</h2><input type="checkbox" class="sw" id="nightToggle" ${nightActive()?"checked":""} aria-label="Going out tonight"></label>`;
   if(!nightActive()){
-    c.innerHTML=`<h2>Going out in ${esc(city(work))} tonight?</h2>
-      <p class="muted small">Pick when you want to head home and Backtrack reminds you before your train leaves, and warns you if it's late or cancelled.</p>
-      <div class="row"><button class="btn" id="nightYes" type="button">Yes, plan my trip home</button><button class="btn ghost" id="nightNo" type="button">Not tonight</button></div>`;
+    c.innerHTML=`${head}<p class="muted small" style="margin:8px 0 0">Switch on to pick when you're heading home. Backtrack reminds you before your train leaves and warns you if it's late or cancelled.</p>`;
     return;
   }
   night.plans=night.plans||[];
   const o=timeOptions();if(!o.includes(Number(night.min)))night.min=o[0];
-  c.innerHTML=`<div class="spread"><h2 style="margin:0">${night.auto?"Heading home tonight?":`Night out in ${esc(city(work))}`}</h2><button class="linkbtn" id="nightOff" type="button">Close</button></div>
+  c.innerHTML=`${head}
     <p class="small muted center" style="margin:14px 0 0">I want to head home around</p>
     <div class="clock" role="group" aria-label="Time to head home">
       <div class="col"><button type="button" data-clock="60" aria-label="One hour later">${ICON.up}</button><div class="digits" id="clockH"></div><button type="button" data-clock="-60" aria-label="One hour earlier">${ICON.dn}</button></div>
@@ -742,9 +746,6 @@ document.addEventListener("click",async e=>{
   if(d.view){show(d.view);return}
   if(d.dir){dir=d.dir;loadBoard();return}
   if(b.id==="refresh"){loadBoard();if(nightActive())loadNightTrains();return}
-  if(b.id==="nightYes"){const o=timeOptions();night={date:localDate(),min:(o.find(m=>m>=23*60)||o[0]),plans:[]};store.set("kv-night",night);renderNight();return}
-  if(b.id==="nightNo"){store.set("kv-night-skip",localDate());b.closest(".card").innerHTML=`<p class="small muted" style="margin:0">Okay. Have a good evening.</p>`;return}
-  if(b.id==="nightOff"){store.set("kv-night-skip",localDate());if(push&&SERVER)api("/plan?id="+push.id,{method:"DELETE"}).catch(()=>{});night=null;store.set("kv-night",null);renderNight();return}
   if(d.plan){const i=d.plan.lastIndexOf("|");togglePlan(d.plan.slice(0,i),d.plan.slice(i+1));return}
   if(d.clock){moveClock(Number(d.clock));return}
   if(d.newticket||b.id==="newTicket"){logTicket();return}
@@ -781,6 +782,11 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("change",async e=>{
   const t=e.target;
+  if(t.id==="nightToggle"){
+    if(t.checked){const o=timeOptions();store.set("kv-night-skip","");night={date:localDate(),min:(isEvening()?o[0]:(o.find(m=>m>=23*60)||o[0])),plans:[]};store.set("kv-night",night)}
+    else{store.set("kv-night-skip",localDate());if(push&&SERVER&&night&&(night.plans||[]).length)api("/plan?id="+push.id,{method:"DELETE"}).catch(()=>{});night=null;store.set("kv-night",null)}
+    renderNight();return;
+  }
   if(t.dataset&&t.dataset.amt){const c=claims[t.dataset.amt];if(c){c.amt=Number(t.value||0);store.set("kv-claims",claims);renderDelays()}return}
   if(t.id==="usualToggle"||t.id==="ticketToggle"||t.id==="morningToggle"){
     const key={usualToggle:"usual",ticketToggle:"ticket",morningToggle:"morning"}[t.id];
