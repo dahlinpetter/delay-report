@@ -88,6 +88,20 @@ nav button[aria-selected="true"]{color:var(--accent)}
 .install span{font-size:13px;opacity:.9}
 .install button{border:0;background:transparent;color:#fff;font-size:20px;line-height:1;padding:4px}
 .install .go{background:var(--accent);color:var(--accent-ink);border-radius:10px;font-size:14px;font-weight:600;padding:8px 12px}
+.install.big{display:grid;grid-template-columns:1fr;gap:12px;padding:18px}
+.install .ihead{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center}
+.install .ihead img{width:56px;height:56px;border-radius:14px}
+.install .ihead b{font-family:var(--display);font-size:20px;font-weight:800;margin-bottom:2px}
+.isteps{margin:0;padding:0;list-style:none;counter-reset:s;display:grid;gap:8px}
+.isteps li{counter-increment:s;display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:center;font-size:14px;background:#ffffff1a;border-radius:10px;padding:8px 10px}
+.isteps li::before{content:counter(s);width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;font-size:13px}
+.install .go.wide{width:100%;padding:12px}
+.isteps .it{font-size:14px;opacity:1;line-height:1.4}
+.isteps .it b{display:inline;font-size:14px;font-weight:700}
+.isteps .it{font-weight:400}
+.install .ihead span{display:block;font-weight:400;line-height:1.4}
+.isteps li{font-weight:400}
+.install .ilater{font-size:13px;opacity:.85;text-decoration:underline;padding:0;justify-self:center}
 footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
@@ -476,18 +490,30 @@ let deferredInstall=null;
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;renderInstall()});
 function renderInstall(){
   const el=$("#install");
-  if(standalone||store.get("kv-install-hide",false)){el.hidden=true;return}
-  const share='<svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:-3px" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M8 7l4-4 4 4M5 12v7h14v-7"/></svg>';
-  let text,action="";
-  if(isIOS)text=`Tap ${share} <b style="display:inline">Share</b> in Safari, then <b style="display:inline">Add to Home Screen</b>.`;
-  else if(deferredInstall){text="Install it for quick access and train reminders.";action=`<button class="go" id="installGo" type="button">Install</button>`}
-  else text="Open your browser menu and choose <b style=\"display:inline\">Install app</b> or <b style=\"display:inline\">Add to Home screen</b>.";
-  el.innerHTML=`<img src="icons/icon-192.png" alt=""><div><b>Put Kvitt on your home screen</b><span>${text}</span></div>${action||`<button id="installHide" type="button" aria-label="Hide">×</button>`}`;
+  if(standalone){el.hidden=true;document.body.classList.add("app-mode");return}
+  document.body.classList.add("browser-mode");
+  const small=store.get("kv-install-hide",false);
+  const share='<svg viewBox="0 0 24 24" width="18" height="18" style="vertical-align:-3px" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M8 7l4-4 4 4M5 12v7h14v-7"/></svg>';
+  const plus='<svg viewBox="0 0 24 24" width="18" height="18" style="vertical-align:-3px" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>';
+  if(small){
+    el.className="install";
+    el.innerHTML=`<img src="icons/icon-192.png" alt=""><div><b>Get the Kvitt app</b><span>Add it to your home screen for reminders.</span></div><button class="go" id="installShow" type="button">How</button>`;
+    el.hidden=false;return;
+  }
+  const steps=isIOS
+    ?[`Tap ${share} <b>Share</b> at the bottom of Safari`,`Scroll down and tap ${plus} <b>Add to Home Screen</b>`,`Open <b>Kvitt</b> from your home screen`]
+    :deferredInstall?null
+    :[`Open the browser menu <b>⋮</b>`,`Tap <b>Install app</b> or <b>Add to Home screen</b>`,`Open <b>Kvitt</b> from your home screen`];
+  el.className="install big";
+  el.innerHTML=`<div class="ihead"><img src="icons/icon-192.png" alt=""><div><b>Get Kvitt on your home screen</b><span>It works like a real app: full screen, one tap away, and with reminders before your last train home.</span></div></div>
+    ${steps?`<ol class="isteps">${steps.map(t=>`<li><span class="it">${t}</span></li>`).join("")}</ol>`:`<button class="go wide" id="installGo" type="button">Install Kvitt</button>`}
+    <button class="ilater" id="installHide" type="button">Continue in the browser</button>`;
   el.hidden=false;
 }
 document.addEventListener("click",async e=>{
   if(e.target.closest("#installGo")&&deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice.catch(()=>{});deferredInstall=null;renderInstall()}
   if(e.target.closest("#installHide")){store.set("kv-install-hide",true);renderInstall()}
+  if(e.target.closest("#installShow")){store.set("kv-install-hide",false);renderInstall()}
 });
 window.addEventListener("appinstalled",()=>{$("#install").hidden=true});
 
