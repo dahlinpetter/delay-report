@@ -181,6 +181,22 @@ async function morningCheck(env) {
   }
 }
 
+// ---------- automatic deletion (data minimisation) ----------
+// - reminders: deleted 1 hour after they were due
+// - messages: deleted after 24 hours
+// - users without the evening check: deleted 6 hours after their last reminder / last app visit
+// - all users: deleted after 30 days without opening the app
+async function cleanup(env) {
+  const d = await db(env), now = Date.now(), H = 3600000;
+  await d.batch([
+    d.prepare("DELETE FROM reminders WHERE due < ?").bind(now - H),
+    d.prepare("DELETE FROM msgs WHERE at < ?").bind(now - 24 * H),
+    d.prepare("DELETE FROM users WHERE morning=0 AND updated < ? AND id NOT IN (SELECT uid FROM reminders WHERE sent=0)").bind(now - 6 * H),
+    d.prepare("DELETE FROM users WHERE updated < ?").bind(now - 30 * 24 * H),
+    d.prepare("DELETE FROM msgs WHERE uid NOT IN (SELECT id FROM users)")
+  ]);
+}
+
 // ---------- HTTP ----------
 export default {
   async fetch(req, env) {
@@ -204,9 +220,10 @@ export default {
       if (p === "/subscribe" && req.method === "POST") {
         const b = await req.json();
         if (!b.sub || !b.sub.endpoint) return json({ error: "missing subscription" }, 400);
-        const id = await idFor(b.sub.endpoint), c = b.cfg || {};
+        const id = await idFor(b.sub.endpoint), raw = b.cfg || {};
+        const c = {}; for (const k of ["from", "to", "o1", "o2", "r1", "type", "price", "factor"]) if (raw[k] != null) c[k] = raw[k];
         await (await db(env)).prepare("INSERT INTO users (id, sub, cfg, morning, r1, updated) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sub=excluded.sub, cfg=excluded.cfg, morning=excluded.morning, r1=excluded.r1, updated=excluded.updated")
-          .bind(id, JSON.stringify(b.sub), JSON.stringify(c), b.morning ? 1 : 0, c.r1 || null, Date.now()).run();
+          .bind(id, JSON.stringify({ endpoint: b.sub.endpoint, keys: b.sub.keys || {} }), JSON.stringify(c), b.morning ? 1 : 0, c.r1 || null, Date.now()).run();
         return json({ id });
       }
 
@@ -231,6 +248,16 @@ export default {
         return json({ ok: true });
       }
 
+      if (p === "/me" && req.method === "DELETE") {
+        const id = url.searchParams.get("id"), d = await db(env);
+        await d.batch([
+          d.prepare("DELETE FROM reminders WHERE uid=?").bind(id),
+          d.prepare("DELETE FROM msgs WHERE uid=?").bind(id),
+          d.prepare("DELETE FROM users WHERE id=?").bind(id)
+        ]);
+        return json({ deleted: true });
+      }
+
       if (p === "/msg") {
         const m = await (await db(env)).prepare("SELECT title, body FROM msgs WHERE uid=?").bind(url.searchParams.get("id")).first();
         return json(m || { title: "Kvitt", body: "Open Kvitt for the latest train info." });
@@ -251,6 +278,8 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(Promise.all([sendDueReminders(env), morningCheck(env)]));
+    const jobs = [sendDueReminders(env), morningCheck(env)];
+    if (new Date(event.scheduledTime).getUTCMinutes() % 15 === 0) jobs.push(cleanup(env));
+    ctx.waitUntil(Promise.all(jobs));
   }
 };

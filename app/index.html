@@ -160,7 +160,18 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px
     <div class="card">
       <h3>About</h3>
       <p class="small">Train data from <a href="https://www.trafiklab.se" target="_blank" rel="noopener">Trafiklab.se</a> (CC-BY 4.0) and its KoDa archive. Kvitt is an independent service and is not affiliated with Skånetrafiken, Öresundståg or DSB.</p>
-      <p class="small muted" style="margin:0">Your commute settings and trip log are stored on this phone. If you turn on notifications, your settings are also stored on Kvitt's server so it can send them.</p>
+    </div>
+    <div class="card" id="privacy">
+      <h3>Privacy</h3>
+      <p class="small">Kvitt has no accounts and never asks for your name, email or phone number. Your commute, trip log and claims are stored only on this phone.</p>
+      <p class="small">If you turn on notifications, Kvitt's server stores your phone's push address and the stations and times it needs for your reminders. Nothing else.</p>
+      <ul class="small" style="margin:0 0 10px;padding-left:18px">
+        <li>Night-out reminders are deleted an hour after the train has left.</li>
+        <li>Without the evening check, everything is deleted within a few hours of your last reminder.</li>
+        <li>With the evening check, your data is kept while you use Kvitt and deleted after 30 days without opening the app.</li>
+        <li>"Turn off and delete my data" deletes everything immediately.</li>
+      </ul>
+      <p class="small muted" style="margin:0">The server runs on Cloudflare and the app is hosted on GitHub, which process data on Kvitt's behalf. Questions or requests: contact details will be added here.</p>
     </div>
   </section>
 </main>
@@ -269,8 +280,11 @@ async function setPlan(sched,train){
   if(!push){
     $("#nightPlan").innerHTML=`<span class="notice" style="display:block">Turn on notifications first (Settings), then pick your train again.</span>`;return;
   }
+  const body=()=>JSON.stringify({id:push.id,sched,train,from:cfg.to,to:cfg.from,mins:[60,30,15]});
   try{
-    const r=await api("/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:push.id,sched,train,from:cfg.to,to:cfg.from,mins:[60,30,15]})});
+    let r;
+    try{r=await api("/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:body()})}
+    catch(err){await subscribe(push.morning,true);r=await api("/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:body()})}
     night.plan={sched,train,set:r.set};store.set("kv-night",night);renderNight();
   }catch(e){$("#nightPlan").innerHTML=`<span class="notice" style="display:block">Couldn't set reminders. ${esc(e.message)}</span>`}
 }
@@ -408,7 +422,8 @@ function renderNotif(){
   else body=`<p class="status ok" style="margin:0 0 10px">Notifications are on</p>
     <label class="row" style="display:flex;gap:10px;align-items:flex-start;font-weight:500"><input type="checkbox" id="morningToggle" style="width:auto;margin-top:3px" ${push.morning?"checked":""}>
       <span>Evening check: when your home window starts (${esc(cfg.r1)}), tell me if a morning train in my window was 20+ minutes late, so I can check whether I was on it.</span></label>
-    <div class="row" style="margin-top:10px"><button class="btn ghost small" id="notifTest" type="button">Send a test notification</button></div>`;
+    <div class="row" style="margin-top:10px"><button class="btn ghost small" id="notifTest" type="button">Send a test notification</button>
+      <button class="btn ghost small" id="notifDelete" type="button">Turn off and delete my data</button></div>`;
   c.innerHTML=`<h3>Notifications</h3>${body}<p class="small muted" id="notifMsg" style="margin:8px 0 0"></p>`;
 }
 function b64ToU8(b){const p="=".repeat((4-b.length%4)%4),s=atob((b+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(s,c=>c.charCodeAt(0))}
@@ -440,7 +455,9 @@ document.addEventListener("click",async e=>{
   if(b.dataset.claimhelp){openClaim=openClaim===b.dataset.claimhelp?null:b.dataset.claimhelp;renderDelays();return}
   if(b.dataset.claimed){const id=b.dataset.claimed;claimed.has(id)?claimed.delete(id):claimed.add(id);store.set("kv-claimed",[...claimed]);renderDelays();return}
   if(b.dataset.copy){const v=decodeURIComponent(b.dataset.copy);try{await navigator.clipboard.writeText(v);b.textContent="Copied ✓"}catch(_){b.textContent="Select it"}setTimeout(()=>b.textContent="Copy",1400);return}
-  if(b.id==="notifOn"){try{await subscribe(true,false);renderNotif();$("#notifMsg").textContent="Done. Try a test notification."}catch(err){$("#notifMsg").textContent="Couldn't turn on notifications: "+err.message}return}
+  if(b.id==="notifOn"){try{await subscribe(false,false);renderNotif();$("#notifMsg").textContent="Done. Try a test notification."}catch(err){$("#notifMsg").textContent="Couldn't turn on notifications: "+err.message}return}
+  if(b.id==="notifDelete"){try{if(SERVER&&push)await api("/me?id="+push.id,{method:"DELETE"});const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub)await sub.unsubscribe();}catch(_){}
+    push=null;store.set("kv-push",null);if(night){night.plan=null;store.set("kv-night",night)}renderNotif();renderNight();$("#notifMsg").textContent="Notifications are off and your data has been deleted from Kvitt's server.";return}
   if(b.id==="notifTest"){try{await api("/test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:push.id})});$("#notifMsg").textContent="Sent. It should arrive in a few seconds."}catch(err){$("#notifMsg").textContent="Couldn't send: "+err.message}return}
 });
 document.addEventListener("change",async e=>{
@@ -481,6 +498,7 @@ fillForm();renderInstall();
 fetch("config.json",{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({})).then(c=>{
   SERVER=c&&c.server?String(c.server).replace(/\/$/,""):null;
   renderAll();show(store.get("kv-view","today"));
+  if(push&&SERVER)subscribe(push.morning,true).catch(()=>{});
 });
 const RAW="https://raw.githubusercontent.com/dahlinpetter/delay-report/main/data/";
 const get=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
