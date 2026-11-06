@@ -144,7 +144,8 @@ async function departures(env, from, to, time) {
     delay: Math.round((dp.delay || 0) / 60), canceled: !!dp.canceled,
     platform: dp.realtime_platform?.designation || dp.scheduled_platform?.designation || "",
     direction: dp.route?.direction || "",
-    alerts: (dp.alerts || []).map(a => a.title || a.text || a.header || "").filter(Boolean).slice(0, 3)
+    // drop one-word notices like "Försening" (the delay itself is already shown)
+    alerts: (dp.alerts || []).map(a => a.title || a.text || a.header || "").filter(t => t && !/^\s*(försening|förseningar|delay|delayed|forsinkelse|forsinket|inställd|inställt|cancelled|aflyst)\s*\.?\s*$/i.test(t)).slice(0, 3)
   }));
 }
 
