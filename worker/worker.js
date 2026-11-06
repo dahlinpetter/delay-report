@@ -175,6 +175,19 @@ async function runChecks(env) {
       continue;
     }
     if (!weekday) continue;
+    if (c.kind === "window") {
+      // morning alert: are trains in the user's morning window late or cancelled?
+      const [o1, o2] = c.dep.split("-"), lo = toMin(o1), hi = toMin(o2);
+      const list = await departures(env, c.frm, c.too, `${lp.date}T${o1}`).catch(() => []);
+      const win = list.filter(x => { const m = toMin(x.sched.slice(11, 16)); return x.sched.slice(0, 10) === lp.date && m >= lo && m <= hi; });
+      const bad = win.filter(x => x.canceled || x.delay >= 10);
+      if (!bad.length) continue;
+      const ok = win.find(x => !x.canceled && x.delay < 5);
+      const what = bad.slice(0, 3).map(x => `${x.sched.slice(11, 16)} ${x.canceled ? "cancelled" : `+${x.delay} min`}`).join(" · ");
+      await push(env, c.uid, c.sub, bad.length > 1 ? `Morning trains to ${c.too} are late` : `The ${bad[0].sched.slice(11, 16)} to ${c.too} is ${bad[0].canceled ? "cancelled" : "late"}`,
+        `${what}.${ok ? ` First on time: ${ok.sched.slice(11, 16)}.` : ""}${bad[0].alerts[0] ? " " + bad[0].alerts[0] : ""}`).catch(() => {});
+      continue;
+    }
     const list = await departures(env, c.frm, c.too, `${lp.date}T${fmt(Math.max(0, toMin(c.dep) - 15))}`).catch(() => []);
     const want = toMin(c.dep);
     const t = list.filter(x => Math.abs(toMin(x.sched.slice(11, 16)) - want) <= 3).sort((a, b) => Math.abs(toMin(a.sched.slice(11, 16)) - want) - Math.abs(toMin(b.sched.slice(11, 16)) - want))[0];
@@ -215,8 +228,8 @@ async function morningCheck(env) {
     const w = late[0], trip = c.type === "single" ? Number(c.price || 0) : Number(c.price || 0) / Math.max(1, Number(c.factor || 20));
     const pct = w.delay >= 60 ? 100 : w.delay >= 40 ? 75 : 50;
     const what = w.c ? `the ${fmt(w.dep)} was cancelled` : `the ${fmt(w.dep)} arrived ${w.delay} min late`;
-    await push(env, u.id, u.sub, "Delay on your morning commute",
-      `This morning ${what} at ${c.to}. Were you on it? Mark it in Backtrack. If so, you may be entitled to about ${Math.round(trip * pct / 100)} kr.`).catch(() => {});
+    await push(env, u.id, u.sub, "Heading home? Finish your claim",
+      `This morning ${what} at ${c.to}. If you were on it, claim it on the way home: about ${Math.round(trip * pct / 100)} kr, done in a minute.`, "view=delays").catch(() => {});
   }
 }
 
@@ -391,6 +404,8 @@ export default {
         for (const k of checks) {
           if (k.kind === "usual" && /^\d\d:\d\d$/.test(k.dep || "") && STATIONS[k.from] && STATIONS[k.to])
             ops.push(d.prepare("INSERT INTO checks (uid, kind, at, date, dep, frm, too) VALUES (?, 'usual', ?, NULL, ?, ?, ?)").bind(id, fmt((toMin(k.dep) - 40 + 1440) % 1440), k.dep, k.from, k.to));
+          if (k.kind === "window" && /^\d\d:\d\d$/.test(k.o1 || "") && /^\d\d:\d\d$/.test(k.o2 || "") && STATIONS[k.from] && STATIONS[k.to])
+            ops.push(d.prepare("INSERT INTO checks (uid, kind, at, date, dep, frm, too) VALUES (?, 'window', ?, NULL, ?, ?, ?)").bind(id, fmt((toMin(k.o1) - 45 + 1440) % 1440), `${k.o1}-${k.o2}`, k.from, k.to));
           if (k.kind === "ticket" && /^\d{4}-\d\d-\d\d$/.test(k.date || "")) {
             const before = new Date(Date.parse(k.date + "T12:00:00Z") - 2 * 86400000).toISOString().slice(0, 10);
             ops.push(d.prepare("INSERT INTO checks (uid, kind, at, date, dep, frm, too) VALUES (?, 'ticket', '18:00', ?, ?, NULL, NULL)").bind(id, before, k.date));

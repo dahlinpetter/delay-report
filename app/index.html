@@ -123,8 +123,17 @@ input.sw:checked::after{transform:translateX(20px);background:#fff}
 .money div{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px}
 .money b{display:block;font-family:var(--display);font-size:24px}
 .money span{font-size:12.5px;color:var(--muted)}
-.plist{display:grid;gap:0;margin-top:6px}
-.plist div{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.plist{display:grid;gap:8px;margin-top:12px}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;width:100%;text-align:left;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--ink)}
+.prow b{display:block;font-size:15px}
+.prow span{font-size:12.5px;color:var(--muted)}
+.prow .amt{font-family:var(--display);font-weight:700;font-size:17px}
+.prow svg{width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:2.4}
+details.hist{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+details.hist summary{list-style:none;cursor:pointer;font-weight:600;font-size:14px;color:var(--accent)}
+details.hist summary::-webkit-details-marker{display:none}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14.5px;margin:4px 0}
+.kv span{color:var(--muted)}
 .tag.in{background:rgba(79,211,154,.16);color:var(--good)}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:var(--card2);border:1px solid var(--line);color:var(--ink);padding:12px 16px;border-radius:14px;font-size:14px;max-width:min(92vw,440px);box-shadow:var(--shadow);animation:fade .2s}
 .okmark{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:rgba(79,211,154,.16);color:var(--good);font-size:28px;font-weight:700;margin:4px auto 0}
@@ -314,11 +323,8 @@ nav button[aria-selected="true"]{color:var(--accent)}
         <label class="field"><span>Home, between</span><input type="time" id="f-r1"></label>
         <label class="field"><span>and</span><input type="time" id="f-r2"></label>
       </div>
-      <h3 style="margin:8px 0 0">Your usual trains</h3>
-      <div class="grid2">
-        <label class="field"><span>To work</span><input type="time" id="f-u1"></label>
-        <label class="field"><span>Home</span><input type="time" id="f-u2"></label>
-      </div>
+      <label class="switch" style="border-top:0;padding:4px 0 0"><div><b>Use my location</b><span>Shows trains in the right direction depending on which side of the bridge you're on</span></div><input type="checkbox" id="locToggle"></label>
+      <p class="small muted" id="locTip" style="margin:0" hidden>On iPhone, to avoid being asked every time: Settings › Privacy &amp; Security › Location Services › Safari Websites › <b>While Using the App</b>.</p>
       <h3 style="margin:8px 0 0">Your ticket</h3>
       <div class="grid2">
         <label class="field"><span>Ticket</span><select id="f-type"><option value="30">30-day ticket</option><option value="single">Single tickets</option></select></label>
@@ -601,7 +607,8 @@ function renderTicket(){
   el.innerHTML=`<h2 style="margin:0">My 30-day ticket</h2>
     <p style="margin:8px 0 4px">${cfg.exp?left:"Add the date your ticket is valid until."}</p>
     <p class="small muted" style="margin:0 0 14px">${kr(cfg.price)} kr · worth ${kr(cfg.price/FACTOR)} kr per trip when you claim${push&&push.ticket?" · reminder 2 days before it runs out":""}</p>
-    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn small" data-newticket="1" type="button">I bought a new ticket today</button><button class="btn small ghost" type="button" data-goto="f-exp">Edit</button></div>`;
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn small" data-newticket="1" type="button">I bought a new ticket today</button><button class="btn small ghost" type="button" data-goto="f-exp">Edit</button></div>
+    ${tickets.length?`<details class="hist"><summary>Earlier tickets (${tickets.length})</summary><div class="plist">${tickets.map((t,i)=>({...t,i})).reverse().map(ticketRow).join("")}</div></details>`:""}`;
   renderTiles();
 }
 function openNewTicket(){
@@ -621,7 +628,7 @@ function openNewTicket(){
 }
 function saveNewTicket(){
   const date=$("#ntDate").value||localDate(),price=Number($("#ntPrice").value||0),exp=$("#ntExp").value||addDays(date,29);
-  tickets.push({date,price});store.set("kv-tickets",tickets);
+  tickets.push({date,price,exp,no:$("#ntNo").value.trim()});store.set("kv-tickets",tickets);
   cfg.type="30";cfg.price=price;cfg.exp=exp;cfg.ticketno=$("#ntNo").value.trim();store.set("kv-cfg",cfg);
   closeSheet();fillForm();renderTicket();renderCosts();renderTiles();renderStatus(true);
   if(push&&SERVER)subscribe(push,true).catch(()=>{});
@@ -676,7 +683,8 @@ const kmBetween=(a,b)=>Math.hypot((a[1]-b[1])*KX,(a[0]-b[0])*KY);
 function guessSide(){const m=toMin(localHM());return m<12*60?"home":m<toMin(cfg.r2||"18:00")+60?"work":"home"}
 async function locate(prompt){
   if(!navigator.geolocation)return null;
-  if(!prompt){try{const st=await navigator.permissions.query({name:"geolocation"});if(st.state!=="granted")return null}catch(_){if(!store.get("kv-loc",false))return null}}
+  // once you've chosen to use location, ask directly on open (iPhone web apps may still ask)
+  if(!prompt&&!store.get("kv-loc",false))return null;
   return new Promise(res=>navigator.geolocation.getCurrentPosition(p=>{store.set("kv-loc",true);res([p.coords.latitude,p.coords.longitude])},()=>res(null),{enableHighAccuracy:false,maximumAge:600000,timeout:8000}));
 }
 function sideOf(pos){const h=stn(cfg.from),w=stn(cfg.to);if(!pos||!h||!w)return null;return kmBetween(pos,h)<=kmBetween(pos,w)?"home":"work"}
@@ -705,7 +713,7 @@ async function renderStatus(keepSide){
   }
   const d=daysLeft();
   if(d!=null&&d<=3)html+=`<div class="row2"><span class="small" style="color:var(--l50)">Your 30-day ticket ${d<0?"has run out":d===0?"runs out today":d===1?"runs out tomorrow":`runs out in ${d} days`}.</span><button class="linkbtn" type="button" data-tool="ticket">Ticket</button></div>`;
-  if(!side.loc&&navigator.geolocation)html+=`<div class="row2"><button class="linkbtn" type="button" id="locOn" style="padding:0;font-size:13px">Use my location to pick the right direction</button></div>`;
+  if(!side.loc&&navigator.geolocation&&!store.get("kv-loc",false))html+=`<div class="row2"><button class="linkbtn" type="button" id="locOn" style="padding:0;font-size:13px">Use my location to pick the right direction</button></div>`;
   el.innerHTML=html;renderTiles();
 }
 function claimableToday(){
@@ -759,8 +767,31 @@ function renderCosts(){
     <div class="money"><div><b>${kr(c.spent)}</b><span>kr spent on tickets</span></div><div><b style="color:var(--good)">${kr(c.back)}</b><span>kr in total refunds (${c.nback} claim${c.nback===1?"":"s"}${c.waiting?`, ${c.waiting} waiting`:""})</span></div></div>
     <p class="small" style="margin:0 0 12px">Your commute cost you <b>${kr(Math.max(0,c.spent-c.back))} kr</b> so far this year.</p>
     <div class="row" style="gap:8px;align-items:end"><label class="field" style="flex:1"><span>Add a ticket purchase (kr)</span><input id="pAmt" type="number" inputmode="numeric" min="1" placeholder="${cfg.type==="30"?kr(cfg.price):"e.g. 120"}"></label><button class="btn small" type="button" id="addPurchase" style="min-height:50px">Add</button></div>
-    ${list.length?`<div class="plist">${list.slice(0,12).map(t=>`<div><span>${dayLabel(t.date)}</span><span>${kr(t.price)} kr <button class="linkbtn" type="button" data-delp="${t.i}" aria-label="Remove" style="padding:0 0 0 10px">✕</button></span></div>`).join("")}</div>`:`<p class="small muted" style="margin:10px 0 0">Tickets you log with "I bought a new ticket" show up here.</p>`}
+    ${list.length?`<div class="plist">${list.map(ticketRow).join("")}</div>`:`<p class="small muted" style="margin:10px 0 0">Tickets you log with "I bought a new ticket" show up here.</p>`}
     <p class="small muted" style="margin:14px 0 0">Good to keep for your tax return: commuting costs above a yearly threshold may be deductible in Sweden (reseavdrag), and compensation you got back lowers the cost. Check Skatteverket's current rules.</p>`;
+}
+const CHEV='<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>';
+const tEnd=t=>t.exp||(Number(t.price)>=500?addDays(t.date,29):t.date);
+function ticketRow(t){
+  const thirty=t.exp||Number(t.price)>=500;
+  return`<button class="prow" type="button" data-tk="${t.i}"><div><b>${dayLabel(t.date)}</b><span>${thirty?`30-day ticket · to ${dayLabel(tEnd(t))}`:"Ticket purchase"}${t.no?` · ${esc(t.no)}`:""}</span></div><div class="amt">${kr(t.price)} kr</div>${CHEV}</button>`;
+}
+function openTicketDetail(i){
+  const t=tickets[i];if(!t)return;const end=tEnd(t);
+  const refunds=Object.entries(claims).filter(([id,c])=>c.s==="paid"&&id.slice(0,10)>=t.date&&id.slice(0,10)<=end);
+  sheet(`<div class="spread"><h2>Ticket ${dayLabel(t.date)}</h2><button class="linkbtn" type="button" data-sheetx>Close</button></div>
+    <div class="kv"><span>Bought</span><b>${dayLabel(t.date)} ${t.date.slice(0,4)}</b><span>Price</span><b>${kr(t.price)} kr</b>
+      ${end!==t.date?`<span>Valid</span><b>${dayLabel(t.date)} – ${dayLabel(end)}</b>`:""}${t.no?`<span>Number</span><b>${esc(t.no)}</b>`:""}
+      <span>Refunds</span><b style="color:var(--good)">${kr(refunds.reduce((s,[,c])=>s+Number(c.amt||0),0))} kr${refunds.length?` (${refunds.length} claim${refunds.length>1?"s":""})`:""}</b></div>
+    <div class="grid2"><label class="field"><span>Price (kr)</span><input type="number" inputmode="numeric" id="tkPrice" value="${Number(t.price)}"></label><label class="field"><span>Ticket or card no.</span><input id="tkNo" value="${esc(t.no||"")}" placeholder="Optional"></label></div>
+    <div class="grid2"><label class="field"><span>Bought on</span><input type="date" id="tkDate" value="${t.date}"></label><label class="field"><span>Valid until</span><input type="date" id="tkExp" value="${t.exp||""}"></label></div>
+    <button class="btn wide" type="button" data-tksave="${i}">Save changes</button>
+    <button class="linkbtn" type="button" data-delp="${i}" style="color:var(--l100)">Delete this ticket</button>`);
+}
+function saveTicketDetail(i){
+  const t=tickets[i];if(!t)return;
+  t.price=Number($("#tkPrice").value||0);t.no=$("#tkNo").value.trim();t.date=$("#tkDate").value||t.date;t.exp=$("#tkExp").value||"";
+  store.set("kv-tickets",tickets);closeSheet();renderCosts();renderTicket();renderTiles();toast("Ticket updated.");
 }
 function addPurchase(){const v=Number($("#pAmt").value||0);if(!(v>0))return;tickets.push({date:localDate(),price:v});store.set("kv-tickets",tickets);renderCosts();renderTiles()}
 
@@ -1074,11 +1105,12 @@ function saveMe(e){
 }
 
 // ---------- Settings ----------
-const F={from:"#f-from",to:"#f-to",o1:"#f-o1",o2:"#f-o2",r1:"#f-r1",r2:"#f-r2",u1:"#f-u1",u2:"#f-u2",type:"#f-type",price:"#f-price",exp:"#f-exp"};
+const F={from:"#f-from",to:"#f-to",o1:"#f-o1",o2:"#f-o2",r1:"#f-r1",r2:"#f-r2",type:"#f-type",price:"#f-price",exp:"#f-exp"};
 function fillForm(){
   if(!$("#f-from").options.length){const opts=STATIONS.map(s=>`<option>${s}</option>`).join("");$("#f-from").innerHTML=opts;$("#f-to").innerHTML=opts}
   for(const[k,id]of Object.entries(F))$(id).value=cfg[k]??"";
   syncTicketFields();fillMe();
+  if($("#locToggle")){$("#locToggle").checked=!!store.get("kv-loc",false);$("#locTip").hidden=!(isIOS&&store.get("kv-loc",false))}
   const yr=localDate().slice(0,4),ty=tickets.filter(t=>t.date.startsWith(yr));
   $("#ticketLog").textContent=ty.length?`Tickets logged in ${yr}: ${ty.length}, ${kr(ty.reduce((s,t)=>s+t.price,0))} kr in total.`:"";
 }
@@ -1098,14 +1130,14 @@ function renderNotif(){
   const c=$("#notifCard");let body="";
   if(isIOS&&!standalone)body=`<p class="notice" style="margin:0">On iPhone, notifications only work when Backtrack is on your home screen. In Safari, tap ${ICON.share} <b>Share</b>, then ${ICON.plus} <b>Add to Home Screen</b>, and open Backtrack from there.</p>`;
   else if(!pushSupported)body=`<p class="notice" style="margin:0">This browser can't receive notifications. Use Safari on iPhone (from the home screen) or Chrome on Android.</p>`;
-  else if(!push)body=`<p class="small muted">Reminders before your train home, a heads-up when your usual train is late, and more.</p><button class="btn wide" id="notifOn" type="button">Turn on notifications</button>`;
+  else if(!push)body=`<p class="small muted">Reminders before your train home, a heads-up in the morning when trains are late, and more.</p><button class="btn wide" id="notifOn" type="button">Turn on notifications</button>`;
   else{
     const hasUsual=!!(cfg.u1||cfg.u2),hasTicket=cfg.type==="30"&&!!cfg.exp;
     body=`<p class="status ok" style="margin:0 0 4px">Notifications are on</p>
-    <label class="switch"><div><b>Morning alert</b><span>${hasUsual?`40 min before your usual train (${[cfg.u1,cfg.u2].filter(Boolean).join(", ")}) if it's late or cancelled`:"Add your usual trains above to use this"}</span></div><input type="checkbox" id="usualToggle" ${push.usual?"checked":""} ${hasUsual?"":"disabled"}></label>
+    <label class="switch"><div><b>Morning alert</b><span>At ${esc(fmt((toMin(cfg.o1||"07:00")-45+1440)%1440))}, 45 min before your morning window, if trains to ${esc(city(cfg.to))} are late or cancelled. Time to decide: go later or work from home?</span></div><input type="checkbox" id="earlyToggle" ${push.early?"checked":""}></label>
     <label class="switch"><div><b>Late-train check-in</b><span>When a train in your time windows runs 18+ min late, ask if you're on it. If you check in and it arrives 20+ min late, your claim is ready to sign.</span></div><input type="checkbox" id="watchToggle" ${push.watch?"checked":""}></label>
     <label class="switch"><div><b>Friday summary</b><span>At 16:00 on Fridays: how much your late trains this week are worth, in pizzas and beers</span></div><input type="checkbox" id="fridayToggle" ${push.friday?"checked":""}></label>
-    <label class="switch"><div><b>Evening check</b><span>At ${esc(cfg.r1)}, if a morning train in your window was 20+ min late</span></div><input type="checkbox" id="morningToggle" ${push.morning?"checked":""}></label>
+    <label class="switch"><div><b>Evening check</b><span>At ${esc(cfg.r1)}, when you head home: if a morning train was 20+ min late, finish the claim on the train</span></div><input type="checkbox" id="morningToggle" ${push.morning?"checked":""}></label>
     <label class="switch"><div><b>Ticket reminder</b><span>${hasTicket?"Two days before your 30-day ticket runs out":"Add the date your ticket is valid until above"}</span></div><input type="checkbox" id="ticketToggle" ${push.ticket?"checked":""} ${hasTicket?"":"disabled"}></label>
     <div class="row" style="margin-top:12px"><button class="btn small ghost" id="notifTest" type="button">Send a test</button><button class="btn small ghost" id="notifDelete" type="button">Turn off and delete my data</button></div>`;
   }
@@ -1114,12 +1146,12 @@ function renderNotif(){
 function b64ToU8(b){const p="=".repeat((4-b.length%4)%4),s=atob((b+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(s,c=>c.charCodeAt(0))}
 function checksFor(p){
   const out=[];
-  if(p.usual){if(cfg.u1)out.push({kind:"usual",dep:cfg.u1,from:cfg.from,to:cfg.to});if(cfg.u2)out.push({kind:"usual",dep:cfg.u2,from:cfg.to,to:cfg.from})}
+  if(p.early&&cfg.o1&&cfg.o2)out.push({kind:"window",from:cfg.from,to:cfg.to,o1:cfg.o1,o2:cfg.o2});
   if(p.ticket&&cfg.type==="30"&&cfg.exp)out.push({kind:"ticket",date:cfg.exp});
   return out;
 }
 async function subscribe(p,silent){
-  p=p||{};
+  p=Object.assign({},p||{});if(p.early==null)p.early=!!p.usual;
   const reg=await navigator.serviceWorker.ready;
   let sub=await reg.pushManager.getSubscription();
   if(!sub){
@@ -1129,10 +1161,10 @@ async function subscribe(p,silent){
   }
   const cfgOut={from:cfg.from,to:cfg.to,o1:cfg.o1,o2:cfg.o2,r1:cfg.r1,r2:cfg.r2,type:cfg.type,price:cfg.price,factor:FACTOR,watch:!!p.watch,friday:!!p.friday,payout:cfg.payout};
   const{id}=await post("/subscribe",{sub:sub.toJSON(),cfg:cfgOut,morning:!!p.morning,checks:checksFor(p)});
-  push={id,morning:!!p.morning,usual:!!p.usual,ticket:!!p.ticket,watch:!!p.watch,friday:!!p.friday};store.set("kv-push",push);
+  push={id,morning:!!p.morning,early:!!p.early,ticket:!!p.ticket,watch:!!p.watch,friday:!!p.friday};store.set("kv-push",push);
 }
 async function turnOnNotifications(){
-  await subscribe({usual:!!(cfg.u1||cfg.u2),ticket:cfg.type==="30"&&!!cfg.exp,watch:true,friday:true},false);
+  await subscribe({early:true,morning:true,ticket:cfg.type==="30"&&!!cfg.exp,watch:true,friday:true},false);
   renderNotif();
   if(pendingAfterNotif&&pendingAfterNotif.type==="plan"){
     const p=pendingAfterNotif;pendingAfterNotif=null;show("today");openTool("night");
@@ -1141,7 +1173,7 @@ async function turnOnNotifications(){
 }
 
 // ---------- welcome guide ----------
-let gStep=0;const G_STEPS=5;
+let gStep=0;const G_STEPS=4;
 function openGuide(){gStep=0;$("#guide").hidden=false;renderGuide()}
 function closeGuide(){$("#guide").hidden=true;store.set("kv-onboarded",true);fillForm();renderAll();show("today")}
 function guideSave(){
@@ -1168,10 +1200,6 @@ function renderGuide(){
       <div class="grid2"><label class="field"><span>To work, between</span><input type="time" data-g="o1" value="${esc(cfg.o1)}"></label><label class="field"><span>and</span><input type="time" data-g="o2" value="${esc(cfg.o2)}"></label></div>
       <div class="grid2"><label class="field"><span>Home, between</span><input type="time" data-g="r1" value="${esc(cfg.r1)}"></label><label class="field"><span>and</span><input type="time" data-g="r2" value="${esc(cfg.r2)}"></label></div>`;
   }else if(gStep===2){
-    body=`<h2>Your usual trains</h2><p class="lead">If you take the same trains most days, we'll warn you in the morning when they're late or cancelled.</p>
-      <div class="grid2"><label class="field"><span>To work</span><input type="time" data-g="u1" value="${esc(cfg.u1)}"></label><label class="field"><span>Home</span><input type="time" data-g="u2" value="${esc(cfg.u2)}"></label></div>`;
-    skip="I don't have regular trains";
-  }else if(gStep===3){
     body=`<h2>Your ticket</h2><p class="lead">This sets how much you can get back when a train is late.</p>
       <div class="grid2"><label class="field"><span>Ticket</span><select data-g="type"><option value="30" ${cfg.type==="30"?"selected":""}>30-day ticket</option><option value="single" ${cfg.type==="single"?"selected":""}>Single tickets</option></select></label>
       <label class="field"><span>Price paid (kr)</span><input type="number" inputmode="numeric" data-g="price" value="${esc(cfg.price)}"></label></div>
@@ -1224,7 +1252,9 @@ document.addEventListener("click",async e=>{
   if(d.rleg){relLeg=d.rleg;renderReliable();return}
   if(b.id==="locOn"){askLocation();return}
   if(b.id==="addPurchase"){addPurchase();return}
-  if(d.delp!=null){tickets.splice(Number(d.delp),1);store.set("kv-tickets",tickets);renderCosts();renderTiles();return}
+  if(d.delp!=null){tickets.splice(Number(d.delp),1);store.set("kv-tickets",tickets);closeSheet();renderCosts();renderTicket();renderTiles();return}
+  if(d.tk!=null){openTicketDetail(Number(d.tk));return}
+  if(d.tksave!=null){saveTicketDetail(Number(d.tksave));return}
   if(b.id==="refresh"){loadBoard();if(nightActive())loadNightTrains();return}
   if(d.plan){const i=d.plan.lastIndexOf("|");togglePlan(d.plan.slice(0,i),d.plan.slice(i+1));return}
   if(d.clock){moveClock(Number(d.clock));return}
@@ -1271,7 +1301,7 @@ document.addEventListener("click",async e=>{
   if(b.id==="installShow"){store.set("kv-install-hide",false);renderInstall();return}
   if(b.id==="gNext"){guideSave();if(gStep>=G_STEPS-1)closeGuide();else{gStep++;renderGuide()}return}
   if(b.id==="gBack"){guideSave();gStep=Math.max(0,gStep-1);renderGuide();return}
-  if(b.id==="gSkip"){if(gStep===2){cfg.u1="";cfg.u2="";store.set("kv-cfg",cfg)}else guideSave();if(gStep>=G_STEPS-1)closeGuide();else{gStep++;renderGuide()}return}
+  if(b.id==="gSkip"){guideSave();if(gStep>=G_STEPS-1)closeGuide();else{gStep++;renderGuide()}return}
   if(b.id==="gNotif"){guideSave();try{await turnOnNotifications();renderGuide()}catch(err){$("#gNotifMsg").textContent=err.message}return}
 });
 document.addEventListener("change",async e=>{
@@ -1281,9 +1311,14 @@ document.addEventListener("change",async e=>{
     else{store.set("kv-night-skip",localDate());if(push&&SERVER&&night&&(night.plans||[]).length)api("/plan?id="+push.id,{method:"DELETE"}).catch(()=>{});night=null;store.set("kv-night",null)}
     renderNight();return;
   }
+  if(t.id==="locToggle"){
+    if(t.checked){const pos=await locate(true);if(!pos){t.checked=false;store.set("kv-loc",false);toast("Location wasn't allowed. You can allow it in your phone's settings.")}else{side=null;renderStatus()}}
+    else{store.set("kv-loc",false);side=null;renderStatus()}
+    $("#locTip").hidden=!(isIOS&&t.checked);return;
+  }
   if(t.dataset&&t.dataset.amt){const c=claims[t.dataset.amt];if(c){c.amt=Number(t.value||0);store.set("kv-claims",claims);renderDelays()}return}
-  if(t.id==="usualToggle"||t.id==="ticketToggle"||t.id==="morningToggle"||t.id==="watchToggle"||t.id==="fridayToggle"){
-    const key={usualToggle:"usual",ticketToggle:"ticket",morningToggle:"morning",watchToggle:"watch",fridayToggle:"friday"}[t.id];
+  if(t.id==="earlyToggle"||t.id==="ticketToggle"||t.id==="morningToggle"||t.id==="watchToggle"||t.id==="fridayToggle"){
+    const key={earlyToggle:"early",ticketToggle:"ticket",morningToggle:"morning",watchToggle:"watch",fridayToggle:"friday"}[t.id];
     try{await subscribe(Object.assign({},push,{[key]:t.checked}),true);$("#notifMsg").textContent="Saved."}catch(err){t.checked=!t.checked;$("#notifMsg").textContent=err.message}
   }
 });
