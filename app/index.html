@@ -89,6 +89,7 @@ input.sw:checked::after{transform:translateX(20px);background:#fff}
 .tr .t s{display:block;font-weight:600;font-size:12px;color:var(--muted)}
 .tr .info{font-size:13px;color:var(--muted);min-width:0}
 .tr .info b{color:var(--ink);font-weight:600;display:block;font-size:14.5px}
+.worth{font-size:12px;font-weight:700;color:var(--good);margin-left:6px;white-space:nowrap}
 .tag.in{background:rgba(79,211,154,.16);color:var(--good)}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:var(--card2);border:1px solid var(--line);color:var(--ink);padding:12px 16px;border-radius:14px;font-size:14px;max-width:min(92vw,440px);box-shadow:var(--shadow);animation:fade .2s}
 .okmark{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:rgba(79,211,154,.16);color:var(--good);font-size:28px;font-weight:700;margin:4px auto 0}
@@ -440,7 +441,7 @@ const post=(path,body)=>api(path,{method:"POST",headers:{"Content-Type":"applica
 function trainRow(t,mode){
   const dep=t.sched.slice(11,16),real=t.real.slice(11,16),late=t.delay>0;
   const sel=mode==="night"&&(night.plans||[]).some(p=>p.sched===t.sched&&p.train===t.train);
-  const tag=t.canceled?`<span class="tag c">Cancelled</span>`:late?`<span class="tag ${t.delay>=20?"l50":""}">+${t.delay} min</span>`:"";
+  const tag=(t.canceled?`<span class="tag c">Cancelled</span>`:late?`<span class="tag ${t.delay>=20?"l50":""}">+${t.delay} min</span>`:"")+(!t.canceled&&level(t.delay)?`<span class="worth">≈ ${kr(tripValue()*level(t.delay)/100)} kr</span>`:"");
   return`<div class="tr${sel?" sel":""}"><div class="t">${late&&!t.canceled?`<s>${dep}</s>${real}`:dep}</div>
     <div class="info"><b>${esc(t.direction)}</b>${t.platform?`Track ${esc(t.platform)}`:""}${t.train?` · ${esc(t.train)}`:""} ${tag}${(t.alerts||[]).slice(0,1).map(a=>`<span class="alertline">${esc(a)}</span>`).join("")}</div>
     ${mode==="night"&&!t.canceled?`<button class="pick" type="button" data-plan="${esc(t.sched)}|${esc(t.train)}" aria-pressed="${sel}">${sel?"Reminding ✓":"Remind me"}</button>`:"<span></span>"}</div>`;
@@ -494,7 +495,7 @@ async function loadNightTrains(){
 }
 function nightRow(t){
   const dep=t.sched.slice(11,16),sel=(night.plans||[]).some(p=>p.sched===t.sched&&p.train===t.train);
-  const st=t.canceled?`<span class="tag c">Cancelled</span>`:t.delay>0?`<span class="tag ${t.delay>=20?"l50":""}">+${t.delay}</span>`:"";
+  const st=(t.canceled?`<span class="tag c">Cancelled</span>`:t.delay>0?`<span class="tag ${t.delay>=20?"l50":""}">+${t.delay}</span>`:"")+(!t.canceled&&level(t.delay)?`<span class="worth" style="margin:0">≈ ${kr(tripValue()*level(t.delay)/100)} kr</span>`:"");
   return`<div class="tr${sel?" sel":""}"><div class="t">${dep}</div><div class="info">${t.platform?`Track ${esc(t.platform)}`:""} ${st}</div>
     ${t.canceled?"<span></span>":`<button class="pick" type="button" data-plan="${esc(t.sched)}|${esc(t.train)}" aria-pressed="${sel}">${sel?"Reminding ✓":"Remind me"}</button>`}</div>`;
 }
@@ -631,7 +632,7 @@ function tripBlock(i){
   const st=c?.s==="paid"?`<span class="status ok">Paid ${kr(c.amt)} kr</span>`:c?.s==="sent"?`<span class="status ok">Claim sent</span>`:i.chosen?`<span class="status">About ${kr(i.value)} kr</span>`:"";
   const rows=i.late.filter(j=>!i.chosen||i.chosen.dep===j.dep).map(j=>{const L=level(j.eff),on=i.chosen&&i.chosen.dep===j.dep;
     return`<div class="tr${on?" sel":""}"><div class="t">${fmt(j.dep)}</div>
-      <div class="info"><b>Arrived ${fmt(j.arr+j.eff)}</b>${j.train?`Train ${esc(j.train)} `:""}${j.cancelled?`<span class="tag c">Cancelled</span>`:`<span class="tag l${L}">+${j.eff} min</span>`}${checkins[i.id]&&checkins[i.id].dep===j.dep?` <span class="tag in">Checked in on board ✓</span>`:""}</div>
+      <div class="info"><b>Arrived ${fmt(j.arr+j.eff)}</b>${j.train?`Train ${esc(j.train)} `:""}${j.cancelled?`<span class="tag c">Cancelled</span>`:`<span class="tag l${L}">+${j.eff} min</span>`}<span class="worth">≈ ${kr(tripValue()*L/100)} kr</span>${checkins[i.id]&&checkins[i.id].dep===j.dep?` <span class="tag in">Checked in on board ✓</span>`:""}</div>
       ${on?(c?"<span></span>":`<button class="pick" type="button" data-unclaim="${i.id}">Change</button>`):`<button class="pick" type="button" data-claim="${i.id}|${j.dep}">Claim</button>`}</div>`}).join("");
   return`<div class="trip"><div class="triphead"><b>${dayLabel(i.day)} · ${i.leg.name}</b>${st}</div><div class="trains">${rows}</div>${i.chosen?claimPanel(i):""}</div>`;
 }
