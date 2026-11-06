@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Kvitt</title>
+<title>Bro</title>
 <meta name="description" content="Your Öresund commuting companion: live trains, reminders for the last train home, and a log of delayed trips.">
 <meta name="theme-color" content="#0f3d2e">
 <link rel="manifest" href="manifest.json">
@@ -14,22 +14,39 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
 <style>
 :root{
-  --bg:#f3f5f1;--card:#ffffff;--ink:#14231c;--muted:#5d6b64;--line:#dfe5e0;
-  --brand:#0f3d2e;--accent:#19a463;--accent-ink:#ffffff;--soft:#e7f4ec;
+  /* Bright mint ground, deep forest actions, fresh green highlights */
+  --bg:#e9f7ef;--card:#ffffff;--ink:#0b2a1f;--muted:#4c675c;--line:#d2e9dc;
+  --brand:#0b3b2c;--accent:#20c46c;--accent-ink:#ffffff;--soft:#ddf3e6;
+  --action:#0b3b2c;--action-ink:#ffffff;
   --l50:#e9a23b;--l75:#e2703a;--l100:#d2453d;--warn-bg:#fdf3e4;
   --display:"Bricolage Grotesque",system-ui,sans-serif;--body:"Inter",system-ui,sans-serif;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#0d1512;--card:#15211c;--ink:#e6eee9;--muted:#9aaba3;--line:#25342d;
-  --brand:#7fe0ad;--accent:#2fc27d;--accent-ink:#06150e;--soft:#183126;--warn-bg:#2a2214;color-scheme:dark}}
+  --bg:#07130e;--card:#0f1f18;--ink:#e6f3ec;--muted:#93ada2;--line:#1f3429;
+  --brand:#7be3a8;--accent:#2fd27c;--accent-ink:#04140b;--soft:#14301f;--warn-bg:#2a2214;
+  --action:#2fd27c;--action-ink:#04140b;color-scheme:dark}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
-header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;justify-content:space-between}
-.logo{font-family:var(--display);font-weight:800;font-size:24px;color:var(--brand);letter-spacing:-.02em}
+header{position:sticky;top:0;z-index:5;overflow:hidden;color:var(--brand);background:var(--sky,linear-gradient(180deg,#c6efd8,#e9f7ef));padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 18px max(16px,env(safe-area-inset-left,0px))}
+header .skymedia{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+header .hrow{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px}
+header .span{position:absolute;left:0;right:0;bottom:0;width:100%;height:46px;z-index:1;color:currentColor;opacity:.22}
+header.dark{color:#fff}
+header.dark .span{opacity:.35}
+.logo{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:-.03em;line-height:1}
+.logo svg{width:34px;height:20px}
 .logo i{color:var(--accent);font-style:normal}
-.route{font-size:13px;color:var(--muted)}
+.route{font-size:13px;opacity:.8;text-align:right}
+.alerts{border-left:4px solid var(--l75)}
+.alerts ul{margin:6px 0 0;padding-left:18px;font-size:13.5px}
+.alertline{display:block;font-size:12.5px;color:var(--l75);margin-top:2px}
+.ticket .row{margin-top:8px}
+.claimrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.claimrow input{width:90px;padding:6px 8px}
+.toggle{display:flex;gap:10px;align-items:flex-start;font-weight:500;margin-top:10px}
+.toggle input{width:auto;margin-top:3px}
 main{max-width:560px;margin:0 auto;padding:4px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));display:grid;gap:14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
 h2{font-family:var(--display);font-weight:800;font-size:21px;line-height:1.2;margin:0 0 4px;letter-spacing:-.01em;text-wrap:balance}
@@ -37,7 +54,7 @@ h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute
 p{margin:0 0 10px}
 .muted{color:var(--muted)}.small{font-size:13px}
 button{font:inherit;cursor:pointer}
-.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:600;background:var(--accent);color:var(--accent-ink)}
+.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:600;background:var(--action);color:var(--action-ink)}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
 .btn.small{padding:7px 12px;font-size:13px;border-radius:10px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -69,7 +86,7 @@ label{display:grid;gap:4px;font-size:13px;font-weight:600}
 .status{font-size:13px}
 .status.ok{color:var(--accent);font-weight:600}
 .pick{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:6px 10px;font-size:12.5px;font-weight:600;white-space:nowrap}
-.pick[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.pick[aria-pressed="true"]{background:var(--action);color:var(--action-ink);border-color:var(--action)}
 .claim{margin-top:8px;background:var(--soft);border-radius:12px;padding:12px;display:grid;gap:6px;font-size:13px}
 .cf{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:8px;align-items:center}
 .cf span{color:var(--muted)}
@@ -107,15 +124,21 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px
 </style>
 </head>
 <body>
-<header>
-  <div class="logo">kvitt<i>.</i></div>
-  <div class="route" id="routeLabel"></div>
+<header id="sky">
+  <div id="skymedia"></div>
+  <svg class="span" viewBox="0 0 400 46" preserveAspectRatio="xMidYMax slice" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M0 38h400"/><path d="M140 4v40M260 4v40M138 4h4M258 4h4"/><path d="M140 8 60 38M140 8 80 38M140 8 100 38M140 8 120 38M140 8l20 30M140 8l40 30M140 8l60 30M260 8l-60 30M260 8l-40 30M260 8l-20 30M260 8l20 30M260 8l40 30M260 8l60 30M260 8l80 30"/><path d="M0 44h400" stroke-width="5"/></svg>
+  <div class="hrow">
+    <div class="logo"><svg viewBox="0 0 68 40" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M2 30h64M22 6v28M46 6v28M22 8 6 30M22 8l-8 22M22 8l8 22M46 8 38 30M46 8l8 22M46 8l16 22"/></svg><span>bro<i>.</i></span></div>
+    <div class="route" id="routeLabel"></div>
+  </div>
 </header>
 
 <main>
   <div class="install" id="install" hidden></div>
   <!-- TODAY -->
   <section id="v-today" class="view">
+    <div class="card alerts" id="alertsCard" hidden></div>
+    <div class="card ticket" id="ticketCard" hidden></div>
     <div class="card" id="nightCard"></div>
     <div class="card">
       <div class="row" style="justify-content:space-between">
@@ -144,7 +167,7 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px
       <div class="stats" id="logStats"></div>
       <div id="log"></div>
     </div>
-    <p class="disclaimer">Kvitt shows delays from public traffic data. Only claim compensation for trips you actually made with a valid ticket. Amounts are estimates. Skånetrafiken assesses every claim.</p>
+    <p class="disclaimer">Bro shows delays from public traffic data. Only claim compensation for trips you actually made with a valid ticket. Amounts are estimates. Skånetrafiken assesses every claim.</p>
   </section>
 
   <!-- SETTINGS -->
@@ -163,29 +186,41 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px
         <label>Home, from<input type="time" id="f-r1"></label>
         <label>to<input type="time" id="f-r2"></label>
       </div>
+      <h3 style="margin:6px 0 0">Your usual trains</h3>
+      <p class="small muted" style="margin:0">Used for the morning alert. Leave empty if you don't have a regular train.</p>
+      <div class="grid2">
+        <label>To work, usually<input type="time" id="f-u1"></label>
+        <label>Home, usually<input type="time" id="f-u2"></label>
+      </div>
+      <h3 style="margin:6px 0 0">Ticket</h3>
       <div class="grid2">
         <label>Ticket<select id="f-type"><option value="30">30-day ticket</option><option value="single">Single tickets</option></select></label>
         <label id="pricelbl">Price paid (kr)<input type="number" id="f-price" min="0" inputmode="numeric"></label>
       </div>
       <label id="factorbox">Trips the period ticket is valued at (Skånetrafiken uses 20)<input type="number" id="f-factor" min="1" inputmode="numeric"></label>
+      <div class="grid2" id="expbox">
+        <label>Valid until<input type="date" id="f-exp"></label>
+        <label>&nbsp;<button class="btn ghost" id="newTicket" type="button">I bought a new ticket</button></label>
+      </div>
+      <p class="small muted" id="ticketLog" style="margin:0"></p>
       <p class="small muted" id="saved" style="margin:0;min-height:18px"></p>
     </form>
     <div class="card" id="notifCard"></div>
     <div class="card">
       <h3>About</h3>
-      <p class="small">Train data from <a href="https://www.trafiklab.se" target="_blank" rel="noopener">Trafiklab.se</a> (CC-BY 4.0) and its KoDa archive. Kvitt is an independent service and is not affiliated with Skånetrafiken, Öresundståg or DSB.</p>
+      <p class="small">Train data from <a href="https://www.trafiklab.se" target="_blank" rel="noopener">Trafiklab.se</a> (CC-BY 4.0) and its KoDa archive. Bro is an independent service and is not affiliated with Skånetrafiken, Öresundståg or DSB.</p>
     </div>
     <div class="card" id="privacy">
       <h3>Privacy</h3>
-      <p class="small">Kvitt has no accounts and never asks for your name, email or phone number. Your commute, trip log and claims are stored only on this phone.</p>
-      <p class="small">If you turn on notifications, Kvitt's server stores your phone's push address and the stations and times it needs for your reminders. Nothing else.</p>
+      <p class="small">Bro has no accounts and never asks for your name, email or phone number. Your commute, trip log and claims are stored only on this phone.</p>
+      <p class="small">If you turn on notifications, Bro's server stores your phone's push address and the stations and times it needs for your reminders. Nothing else.</p>
       <ul class="small" style="margin:0 0 10px;padding-left:18px">
         <li>Night-out reminders are deleted an hour after the train has left.</li>
         <li>Without the evening check, everything is deleted within a few hours of your last reminder.</li>
-        <li>With the evening check, your data is kept while you use Kvitt and deleted after 30 days without opening the app.</li>
+        <li>With the evening check, morning alert or ticket reminder on, your data is kept while you use Bro and deleted after 30 days without opening the app.</li>
         <li>"Turn off and delete my data" deletes everything immediately.</li>
       </ul>
-      <p class="small muted" style="margin:0">The server runs on Cloudflare and the app is hosted on GitHub, which process data on Kvitt's behalf. Questions or requests: contact details will be added here.</p>
+      <p class="small muted" style="margin:0">The server runs on Cloudflare and the app is hosted on GitHub, which process data on Bro's behalf. Questions or requests: contact details will be added here.</p>
     </div>
   </section>
 </main>
@@ -206,10 +241,12 @@ const STATIONS=["Lund C","Malmö C","Triangeln","Hyllie","Kastrup","Ørestad","K
 const DEF={from:"Malmö C",to:"København H",o1:"07:15",o2:"08:30",r1:"15:30",r2:"17:30",type:"30",price:2000,factor:20};
 let cfg=Object.assign({},DEF,store.get("kv-cfg",store.get("odr-cfg2",{})));
 let took=store.get("kv-took",{});          // "day|leg" -> departure minute the user confirmed
-let claimed=new Set(store.get("kv-claimed",[]));
+let claims=store.get("kv-claims",null);   // id -> {s:"sent"|"paid", amt, date}
+if(!claims){claims={};for(const id of store.get("kv-claimed",[]))claims[id]={s:"sent",date:new Date().toISOString().slice(0,10)};store.set("kv-claims",claims)}
+let tickets=store.get("kv-tickets",[]);     // [{date, price}]
 let unlocked=store.get("kv-unlocked",false);
 let period="two", dir="home", openClaim=null, DATA=null, SERVER=null;
-let push=store.get("kv-push",null);        // {id, morning}
+let push=store.get("kv-push",null);        // {id, morning, usual, ticket}
 let night=store.get("kv-night",null);      // {date, time, plan:{train, sched}}
 
 const toMin=t=>{const[h,m]=String(t).split(":").map(Number);return h*60+m};
@@ -224,6 +261,34 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 const city=s=>/København|Ørestad|Kastrup/.test(s)?"Copenhagen":s.replace(/ C$/,"");
 const localDate=(d=new Date())=>{const p=new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",year:"numeric",month:"2-digit",day:"2-digit"}).format(d);return p};
 const localHM=(d=new Date())=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Stockholm",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(d);
+
+// ---------- sky: colours follow the sun over the Öresund bridge ----------
+function sunTimes(date){ // returns {rise, set} in ms, for the bridge (55.57N, 12.85E)
+  const lat=55.57,lon=12.85,rad=Math.PI/180;
+  const JD=date.getTime()/86400000+2440587.5,n=Math.round(JD-2451545+0.0008),J=n-lon/360;
+  const M=(357.5291+0.98560028*J)%360,C=1.9148*Math.sin(M*rad)+0.02*Math.sin(2*M*rad)+0.0003*Math.sin(3*M*rad);
+  const L=(M+C+282.9372)%360,Jt=2451545+J+0.0053*Math.sin(M*rad)-0.0069*Math.sin(2*L*rad);
+  const d=Math.asin(Math.sin(L*rad)*Math.sin(23.44*rad));
+  const w=Math.acos((Math.sin(-0.833*rad)-Math.sin(lat*rad)*Math.sin(d))/(Math.cos(lat*rad)*Math.cos(d)))/rad;
+  const ms=j=>(j-2440587.5)*86400000;return{rise:ms(Jt-w/360),set:ms(Jt+w/360)};
+}
+let SKY_VIDEO=null,skyPhase="";
+function renderSky(){
+  const now=Date.now(),{rise,set}=sunTimes(new Date()),M=60000;
+  const phase=Math.abs(now-set)<45*M?"sunset":Math.abs(now-rise)<40*M?"sunrise":(now>rise&&now<set)?"day":"night";
+  if(phase===skyPhase)return;skyPhase=phase;
+  const h=$("#sky"),grad={
+    day:"linear-gradient(180deg,#bdeccf 0%,#e9f7ef 100%)",
+    sunrise:"linear-gradient(180deg,#5b6aa8 0%,#e7a1a8 55%,#ffd9a8 100%)",
+    sunset:"linear-gradient(180deg,#2b2a5e 0%,#b5507a 45%,#f39a55 82%,#ffd08a 100%)",
+    night:"linear-gradient(180deg,#05141f 0%,#0b2a35 100%)"}[phase];
+  h.style.setProperty("--sky",grad);h.classList.toggle("dark",phase!=="day");
+  const media=$("#skymedia");
+  if(phase==="sunset"&&SKY_VIDEO&&!matchMedia("(prefers-reduced-motion: reduce)").matches)
+    media.innerHTML=`<video class="skymedia" src="${SKY_VIDEO}" autoplay muted loop playsinline></video>`;
+  else media.innerHTML="";
+  document.querySelector('meta[name="theme-color"]').content=phase==="day"?"#bdeccf":phase==="night"?"#05141f":"#2b2a5e";
+}
 
 // ---------- views ----------
 function show(v){
@@ -249,27 +314,30 @@ function timeOptions(){ // evening and night: from 17:00 (or now) until 03:00
   return out;
 }
 function defaultTime(){const o=timeOptions();return o.find(m=>m>=23*60)||o[0]}
+function isEvening(){const m=toMin(localHM());return m>=19*60||m<3*60}
 function nightTimeToLocal(min){ // minutes after the evening's midnight (can pass 24h) -> "YYYY-MM-DDTHH:mm"
   let base=localDate();if(toMin(localHM())<5*60)base=addDays(base,-1);
   const day=min>=24*60?addDays(base,1):base;return day+"T"+fmt(min%(24*60));
 }
 async function renderNight(){
   const c=$("#nightCard"),home=cfg.from,work=cfg.to;
+  // Evening mode: from 19:00 the card goes straight to the trains home
+  if(!nightActive()&&isEvening()&&store.get("kv-night-skip","")!==localDate()){night={date:localDate(),min:timeOptions()[0],auto:true};store.set("kv-night",night)}
   if(!nightActive()){
     c.innerHTML=`<h2>Going out in ${esc(city(work))} tonight?</h2>
-      <p class="muted small">Tell Kvitt roughly when you want to head home and it will remind you before your train leaves, and warn you if it's late or cancelled.</p>
+      <p class="muted small">Tell Bro roughly when you want to head home and it will remind you before your train leaves, and warn you if it's late or cancelled.</p>
       <div class="row"><button class="btn" id="nightYes" type="button">Yes, remind me</button><button class="btn ghost" id="nightNo" type="button">Not tonight</button></div>`;
     return;
   }
   const opts=timeOptions().map(m=>`<option value="${m}" ${String(m)===String(night.min)?"selected":""}>${fmt(m)}${m>=1440?" (after midnight)":""}</option>`).join("");
-  c.innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">Night out in ${esc(city(work))}</h2><button class="btn ghost small" id="nightOff" type="button">Cancel</button></div>
+  c.innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">${night.auto?"Heading home tonight?":`Night out in ${esc(city(work))}`}</h2><button class="btn ghost small" id="nightOff" type="button">Cancel</button></div>
     <label style="margin-top:10px">I want to head home around<select id="nightTime">${opts}</select></label>
     <div id="nightPlan" class="small" style="margin-top:10px"></div>
     <div id="nightTrains" class="trains"><p class="small muted">Loading trains…</p></div>`;
   if(!night.min){night.min=defaultTime();store.set("kv-night",night)}
   $("#nightTime").value=night.min;
   renderPlanStatus();
-  if(!SERVER){$("#nightTrains").innerHTML=`<p class="notice">Live trains and reminders need Kvitt's server, which isn't set up yet.</p>`;return}
+  if(!SERVER){$("#nightTrains").innerHTML=`<p class="notice">Live trains and reminders need Bro's server, which isn't set up yet.</p>`;return}
   try{
     const{trains}=await api(`/trains?from=${encodeURIComponent(work)}&to=${encodeURIComponent(home)}&time=${encodeURIComponent(nightTimeToLocal(Number(night.min)))}`);
     const list=trains.filter(t=>!t.canceled||true).slice(0,6);
@@ -287,7 +355,7 @@ function trainRow(t,pickable){
   const time=late?`<s>${dep}</s>${real}`:dep;
   const tag=t.canceled?`<span class="tag c">Cancelled</span>`:late?`<span class="tag ${t.delay>=20?"l50":""}">+${t.delay} min</span>`:"";
   return`<div class="tr${sel?" sel":""}"><div class="t">${time}</div>
-    <div class="info"><b>${esc(t.direction||"")}</b>${t.platform?` · track ${esc(t.platform)}`:""}${t.train?` · train ${esc(t.train)}`:""} ${tag}</div>
+    <div class="info"><b>${esc(t.direction||"")}</b>${t.platform?` · track ${esc(t.platform)}`:""}${t.train?` · train ${esc(t.train)}`:""} ${tag}${(t.alerts||[]).slice(0,1).map(a=>`<span class="alertline">⚠ ${esc(a)}</span>`).join("")}</div>
     ${pickable&&!t.canceled?`<button class="pick" type="button" data-plan="${esc(t.sched)}|${esc(t.train)}" aria-pressed="${sel}">${sel?"Reminders on":"Remind me"}</button>`:"<span></span>"}</div>`;
 }
 async function setPlan(sched,train){
@@ -298,7 +366,7 @@ async function setPlan(sched,train){
   try{
     let r;
     try{r=await api("/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:body()})}
-    catch(err){await subscribe(push.morning,true);r=await api("/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:body()})}
+    catch(err){await subscribe(push,true);r=await api("/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:body()})}
     night.plan={sched,train,set:r.set};store.set("kv-night",night);renderNight();
   }catch(e){$("#nightPlan").innerHTML=`<span class="notice" style="display:block">Couldn't set reminders. ${esc(e.message)}</span>`}
 }
@@ -307,12 +375,37 @@ async function setPlan(sched,train){
 async function loadBoard(){
   const from=dir==="home"?cfg.to:cfg.from,to=dir==="home"?cfg.from:cfg.to;
   $("#dirSeg").innerHTML=`<button type="button" data-dir="home" aria-selected="${dir==="home"}">${esc(city(cfg.to))} → ${esc(city(cfg.from))}</button><button type="button" data-dir="work" aria-selected="${dir==="work"}">${esc(city(cfg.from))} → ${esc(city(cfg.to))}</button>`;
-  if(!SERVER){$("#board").innerHTML=`<p class="notice">Live trains need Kvitt's server, which isn't set up yet.</p>`;return}
+  if(!SERVER){$("#board").innerHTML=`<p class="notice">Live trains need Bro's server, which isn't set up yet.</p>`;return}
   try{
-    const{trains}=await api(`/trains?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+    const[{trains},other]=await Promise.all([api(`/trains?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),api(`/trains?from=${encodeURIComponent(to)}&to=${encodeURIComponent(from)}`).catch(()=>({trains:[]}))]);
+    renderAlerts(trains.concat(other.trains||[]));
     $("#board").innerHTML=trains.length?trains.slice(0,6).map(t=>trainRow(t,false)).join(""):`<p class="small muted">No trains in the next hour.</p>`;
     $("#boardNote").textContent=`From ${from}. Updated ${localHM()}.`;
   }catch(e){$("#board").innerHTML=`<p class="notice">Couldn't load trains. ${esc(e.message)}</p>`}
+}
+
+function renderAlerts(list){
+  const seen=[...new Set(list.flatMap(t=>t.alerts||[]))].slice(0,4);
+  const canc=list.filter(t=>t.canceled).length;
+  const el=$("#alertsCard");
+  if(!seen.length&&!canc){el.hidden=true;return}
+  el.hidden=false;
+  el.innerHTML=`<h3 style="margin:0">Disruptions on your line</h3>${canc?`<p class="small" style="margin:6px 0 0">${canc} cancelled train${canc>1?"s":""} in the next hour.</p>`:""}${seen.length?`<ul>${seen.map(a=>`<li>${esc(a)}</li>`).join("")}</ul>`:""}`;
+}
+// ---------- Ticket ----------
+function daysLeft(){if(cfg.type!=="30"||!cfg.exp)return null;return Math.round((dObj(cfg.exp)-dObj(localDate()))/86400000)}
+function renderTicket(){
+  const el=$("#ticketCard"),d=daysLeft();
+  if(d==null||d>5){el.hidden=true;return}
+  el.hidden=false;
+  const when=`${DOW[dObj(cfg.exp).getDay()]} ${dObj(cfg.exp).getDate()} ${MON[dObj(cfg.exp).getMonth()]}`;
+  el.innerHTML=`<h3 style="margin:0">Your 30-day ticket</h3><p style="margin:6px 0 0">${d<0?`Ran out on ${when}.`:d===0?"Runs out <b>today</b>.":d===1?"Runs out <b>tomorrow</b>.":`Runs out in <b>${d} days</b> (${when}).`}</p>
+    <div class="row"><button class="btn small" id="newTicket2" type="button">I bought a new ticket</button></div>`;
+}
+function logTicket(){
+  const today=localDate();tickets.push({date:today,price:Number(cfg.price||0)});store.set("kv-tickets",tickets);
+  cfg.exp=addDays(today,29);store.set("kv-cfg",cfg);fillForm();renderTicket();
+  if(push&&SERVER)subscribe(push,true).catch(()=>{});
 }
 
 // ---------- Delays ----------
@@ -384,9 +477,10 @@ function renderDelays(){
       <p class="small muted" style="margin:0">Demo: no payment is taken yet.</p></div>`;
     return;
   }
-  const conf=a.items.filter(i=>i.chosen),confKr=conf.reduce((s,i)=>s+i.value,0),clKr=conf.filter(i=>claimed.has(i.id)).reduce((s,i)=>s+i.value,0);
-  $("#logStats").innerHTML=`<div class="stat"><b>${conf.length}</b><span>trips confirmed</span></div>
-    <div class="stat"><b>${kr(confKr)}</b><span>kr you may claim</span></div><div class="stat"><b>${kr(clKr)}</b><span>kr marked claimed</span></div>`;
+  const conf=a.items.filter(i=>i.chosen&&level(i.chosen.eff)),open=conf.filter(i=>!claims[i.id]),openKr=open.reduce((s,i)=>s+i.value,0);
+  const yr=localDate().slice(0,4),cl=Object.values(claims),waiting=cl.filter(c=>c.s==="sent").length,got=cl.filter(c=>c.s==="paid"&&String(c.date).startsWith(yr)).reduce((s,c)=>s+Number(c.amt||0),0);
+  $("#logStats").innerHTML=`<div class="stat"><b>${kr(openKr)}</b><span>kr not claimed yet</span></div>
+    <div class="stat"><b>${waiting}</b><span>claims waiting for payment</span></div><div class="stat"><b>${kr(got)}</b><span>kr received in ${yr}</span></div>`;
   const shown=a.items.filter(i=>i.late.length||i.chosen).sort((x,y)=>y.day.localeCompare(x.day)||x.leg.k.localeCompare(y.leg.k));
   $("#log").innerHTML=shown.length?shown.map(i=>{
     const d=dObj(i.day),lv=i.chosen?level(i.chosen.eff):0;
@@ -397,9 +491,15 @@ function renderDelays(){
         <div class="info">arrived ${fmt(j.arr+j.eff)} ${j.cancelled?`<span class="tag c">Cancelled</span>`:L?`<span class="tag l${L}">+${j.eff} min</span>`:j.eff>0?`<span class="tag">+${j.eff} min</span>`:`<span class="tag">on time</span>`}</div>
         <button class="pick" type="button" data-took="${i.id}|${j.dep}" aria-pressed="${on}">${on?"I took this ✓":"I took this"}</button></div>`}).join("");
     const cl=i.chosen&&lv?`<div class="row" style="margin-top:8px"><button class="btn small" type="button" data-claimhelp="${i.id}">${openClaim===i.id?"Hide claim details":"Claim details"}</button>
-      <button class="btn ghost small" type="button" data-claimed="${i.id}" aria-pressed="${claimed.has(i.id)}">${claimed.has(i.id)?"Claimed ✓":"Mark as claimed"}</button></div>${openClaim===i.id?claimPanel(i):""}`:"";
+      ${claimControls(i)}</div>${openClaim===i.id?claimPanel(i):""}`:"";
     return`<div class="day"><div class="dayhead"><b>${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]} · ${i.leg.name}</b>${st}</div>
       <div class="trains">${rows}</div>${cl}</div>`}).join(""):`<p class="small muted">No delayed trains in your time windows in this period.</p>`;
+}
+function claimControls(i){
+  const c=claims[i.id];
+  if(!c)return`<button class="btn ghost small" type="button" data-claimed="${i.id}">Mark as claimed</button>`;
+  if(c.s==="sent")return`<span class="status">Claimed, waiting</span><button class="btn ghost small" type="button" data-paid="${i.id}|${Math.round(i.value)}">Mark as paid</button><button class="pick" type="button" data-unclaim="${i.id}">Undo</button>`;
+  return`<span class="status ok">Paid</span><label class="claimrow" style="margin:0;font-weight:500">kr <input type="number" inputmode="numeric" data-amt="${i.id}" value="${Number(c.amt||0)}"></label><button class="pick" type="button" data-unclaim="${i.id}">Undo</button>`;
 }
 function claimPanel(i){
   const j=i.chosen,f=[["Date",i.day],["From",`${i.leg.from}, departure ${fmt(j.dep)}`],["To",`${i.leg.to}, planned arrival ${fmt(j.arr)}`],
@@ -411,17 +511,21 @@ function claimPanel(i){
 }
 
 // ---------- Settings ----------
-const F={from:"#f-from",to:"#f-to",o1:"#f-o1",o2:"#f-o2",r1:"#f-r1",r2:"#f-r2",type:"#f-type",price:"#f-price",factor:"#f-factor"};
+const F={from:"#f-from",to:"#f-to",o1:"#f-o1",o2:"#f-o2",r1:"#f-r1",r2:"#f-r2",u1:"#f-u1",u2:"#f-u2",type:"#f-type",price:"#f-price",factor:"#f-factor",exp:"#f-exp"};
 function fillForm(){
   const opts=STATIONS.map(s=>`<option>${s}</option>`).join("");$("#f-from").innerHTML=opts;$("#f-to").innerHTML=opts;
-  for(const[k,id]of Object.entries(F))$(id).value=cfg[k];
+  for(const[k,id]of Object.entries(F))$(id).value=cfg[k]??"";
+  $("#expbox").hidden=cfg.type==="single";
+  const yr=localDate().slice(0,4),ty=tickets.filter(t=>t.date.startsWith(yr));
+  $("#ticketLog").textContent=ty.length?`Tickets logged in ${yr}: ${ty.length}, ${kr(ty.reduce((s,t)=>s+t.price,0))} kr in total.`:"";
   $("#factorbox").hidden=cfg.type==="single";$("#pricelbl").firstChild.textContent=cfg.type==="single"?"Price per trip (kr)":"Price paid (kr)";
 }
 function saveForm(){
-  for(const[k,id]of Object.entries(F)){const v=$(id).value;if(v!=="")cfg[k]=(k==="price"||k==="factor")?Number(v):v}
+  for(const[k,id]of Object.entries(F)){const v=$(id).value;if(v!==""||k==="u1"||k==="u2"||k==="exp")cfg[k]=(k==="price"||k==="factor")?Number(v):v}
   store.set("kv-cfg",cfg);fillForm();renderAll();
   $("#saved").textContent="Saved";clearTimeout(saveForm.t);saveForm.t=setTimeout(()=>$("#saved").textContent="",1500);
-  if(push)subscribe(push.morning,true).catch(()=>{});
+  if(push)subscribe(push,true).catch(()=>{});
+  renderTicket();
 }
 const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
 const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
@@ -429,19 +533,30 @@ function renderNotif(){
   const c=$("#notifCard");
   const supported="serviceWorker"in navigator&&"PushManager"in window&&"Notification"in window;
   let body="";
-  if(isIOS&&!standalone)body=`<p class="notice">On iPhone, notifications only work when Kvitt is on your home screen. Tap the Share button in Safari, choose <b>Add to Home Screen</b>, then open Kvitt from there.</p>`;
+  if(isIOS&&!standalone)body=`<p class="notice">On iPhone, notifications only work when Bro is on your home screen. Tap the Share button in Safari, choose <b>Add to Home Screen</b>, then open Bro from there.</p>`;
   else if(!supported)body=`<p class="notice">This browser can't receive notifications. Try Safari on iPhone (from the home screen) or Chrome on Android.</p>`;
-  else if(!SERVER)body=`<p class="notice">Notifications need Kvitt's server, which isn't set up yet.</p>`;
+  else if(!SERVER)body=`<p class="notice">Notifications need Bro's server, which isn't set up yet.</p>`;
   else if(!push)body=`<p class="small muted">Get reminders before your train home, and a heads-up when a train you usually take was delayed.</p><button class="btn" id="notifOn" type="button">Turn on notifications</button>`;
   else body=`<p class="status ok" style="margin:0 0 10px">Notifications are on</p>
-    <label class="row" style="display:flex;gap:10px;align-items:flex-start;font-weight:500"><input type="checkbox" id="morningToggle" style="width:auto;margin-top:3px" ${push.morning?"checked":""}>
-      <span>Evening check: when your home window starts (${esc(cfg.r1)}), tell me if a morning train in my window was 20+ minutes late, so I can check whether I was on it.</span></label>
+    <label class="toggle"><input type="checkbox" id="usualToggle" ${push.usual?"checked":""} ${cfg.u1||cfg.u2?"":"disabled"}>
+      <span><b>Morning alert:</b> 40 minutes before your usual train${cfg.u1||cfg.u2?` (${[cfg.u1,cfg.u2].filter(Boolean).join(" and ")})`:""}, warn me if it's late, cancelled or disrupted.${cfg.u1||cfg.u2?"":" Set your usual trains above first."}</span></label>
+    <label class="toggle"><input type="checkbox" id="morningToggle" ${push.morning?"checked":""}>
+      <span><b>Evening check:</b> when your home window starts (${esc(cfg.r1)}), tell me if a morning train in my window was 20+ minutes late, so I can check whether I was on it.</span></label>
+    <label class="toggle"><input type="checkbox" id="ticketToggle" ${push.ticket?"checked":""} ${cfg.type==="30"&&cfg.exp?"":"disabled"}>
+      <span><b>Ticket reminder:</b> remind me two days before my 30-day ticket runs out.${cfg.type==="30"&&cfg.exp?"":" Add the date it's valid until above first."}</span></label>
     <div class="row" style="margin-top:10px"><button class="btn ghost small" id="notifTest" type="button">Send a test notification</button>
       <button class="btn ghost small" id="notifDelete" type="button">Turn off and delete my data</button></div>`;
   c.innerHTML=`<h3>Notifications</h3>${body}<p class="small muted" id="notifMsg" style="margin:8px 0 0"></p>`;
 }
 function b64ToU8(b){const p="=".repeat((4-b.length%4)%4),s=atob((b+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(s,c=>c.charCodeAt(0))}
-async function subscribe(morning,silent){
+function checksFor(p){
+  const out=[];
+  if(p.usual){if(cfg.u1)out.push({kind:"usual",dep:cfg.u1,from:cfg.from,to:cfg.to});if(cfg.u2)out.push({kind:"usual",dep:cfg.u2,from:cfg.to,to:cfg.from})}
+  if(p.ticket&&cfg.type==="30"&&cfg.exp)out.push({kind:"ticket",date:cfg.exp});
+  return out;
+}
+async function subscribe(p,silent){
+  p=p&&typeof p==="object"?p:{morning:!!p};
   const reg=await navigator.serviceWorker.ready;
   let sub=await reg.pushManager.getSubscription();
   if(!sub){
@@ -449,8 +564,8 @@ async function subscribe(morning,silent){
     const{key}=await api("/vapid");
     sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(key)});
   }
-  const{id}=await api("/subscribe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sub:sub.toJSON(),cfg,morning:!!morning})});
-  push={id,morning:!!morning};store.set("kv-push",push);
+  const{id}=await api("/subscribe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sub:sub.toJSON(),cfg,morning:!!p.morning,checks:checksFor(p)})});
+  push={id,morning:!!p.morning,usual:!!p.usual,ticket:!!p.ticket};store.set("kv-push",push);
 }
 
 // ---------- events ----------
@@ -460,29 +575,34 @@ document.addEventListener("click",async e=>{
   if(b.dataset.dir){dir=b.dataset.dir;loadBoard();return}
   if(b.id==="refresh"){loadBoard();if(nightActive())renderNight();return}
   if(b.id==="nightYes"){night={date:localDate(),min:defaultTime()};store.set("kv-night",night);renderNight();return}
-  if(b.id==="nightNo"){b.closest(".card").innerHTML=`<p class="small muted" style="margin:0">Okay. Have a good evening at home.</p>`;return}
-  if(b.id==="nightOff"){if(push&&SERVER)api("/plan?id="+push.id,{method:"DELETE"}).catch(()=>{});night=null;store.set("kv-night",null);renderNight();return}
+  if(b.id==="nightNo"){store.set("kv-night-skip",localDate());b.closest(".card").innerHTML=`<p class="small muted" style="margin:0">Okay. Have a good evening at home.</p>`;return}
+  if(b.id==="nightOff"){store.set("kv-night-skip",localDate());if(push&&SERVER)api("/plan?id="+push.id,{method:"DELETE"}).catch(()=>{});night=null;store.set("kv-night",null);renderNight();return}
   if(b.dataset.plan){const[s,t]=b.dataset.plan.split("|");setPlan(s,t);return}
   if(b.dataset.p){period=b.dataset.p;renderDelays();return}
   if(b.id==="unlock"){unlocked=true;store.set("kv-unlocked",true);renderDelays();return}
   if(b.dataset.took){const[day,leg,dep]=b.dataset.took.split("|"),id=day+"|"+leg;took[id]===Number(dep)?delete took[id]:took[id]=Number(dep);store.set("kv-took",took);renderDelays();return}
   if(b.dataset.claimhelp){openClaim=openClaim===b.dataset.claimhelp?null:b.dataset.claimhelp;renderDelays();return}
-  if(b.dataset.claimed){const id=b.dataset.claimed;claimed.has(id)?claimed.delete(id):claimed.add(id);store.set("kv-claimed",[...claimed]);renderDelays();return}
+  if(b.dataset.claimed){claims[b.dataset.claimed]={s:"sent",date:localDate()};store.set("kv-claims",claims);openClaim=null;renderDelays();return}
+  if(b.dataset.paid){const[id,amt]=b.dataset.paid.split("|");claims[id]={s:"paid",amt:Number(amt),date:localDate()};store.set("kv-claims",claims);renderDelays();return}
+  if(b.dataset.unclaim){delete claims[b.dataset.unclaim];store.set("kv-claims",claims);renderDelays();return}
+  if(b.id==="newTicket"||b.id==="newTicket2"){logTicket();return}
   if(b.dataset.copy){const v=decodeURIComponent(b.dataset.copy);try{await navigator.clipboard.writeText(v);b.textContent="Copied ✓"}catch(_){b.textContent="Select it"}setTimeout(()=>b.textContent="Copy",1400);return}
-  if(b.id==="notifOn"){try{await subscribe(false,false);renderNotif();$("#notifMsg").textContent="Done. Try a test notification."}catch(err){$("#notifMsg").textContent="Couldn't turn on notifications: "+err.message}return}
+  if(b.id==="notifOn"){try{await subscribe({},false);renderNotif();$("#notifMsg").textContent="Done. Try a test notification."}catch(err){$("#notifMsg").textContent="Couldn't turn on notifications: "+err.message}return}
   if(b.id==="notifDelete"){try{if(SERVER&&push)await api("/me?id="+push.id,{method:"DELETE"});const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub)await sub.unsubscribe();}catch(_){}
-    push=null;store.set("kv-push",null);if(night){night.plan=null;store.set("kv-night",night)}renderNotif();renderNight();$("#notifMsg").textContent="Notifications are off and your data has been deleted from Kvitt's server.";return}
+    push=null;store.set("kv-push",null);if(night){night.plan=null;store.set("kv-night",night)}renderNotif();renderNight();$("#notifMsg").textContent="Notifications are off and your data has been deleted from Bro's server.";return}
   if(b.id==="notifTest"){try{await api("/test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:push.id})});$("#notifMsg").textContent="Sent. It should arrive in a few seconds."}catch(err){$("#notifMsg").textContent="Couldn't send: "+err.message}return}
 });
 document.addEventListener("change",async e=>{
   if(e.target.id==="nightTime"){night.min=Number(e.target.value);night.plan=null;store.set("kv-night",night);if(push&&SERVER)api("/plan?id="+push.id,{method:"DELETE"}).catch(()=>{});renderNight()}
-  if(e.target.id==="morningToggle"){try{await subscribe(e.target.checked,true);$("#notifMsg").textContent=e.target.checked?"Evening check is on.":"Evening check is off."}catch(err){$("#notifMsg").textContent=err.message}}
+  if(e.target.dataset&&e.target.dataset.amt){const c=claims[e.target.dataset.amt];if(c){c.amt=Number(e.target.value||0);store.set("kv-claims",claims);renderDelays()}}
+  if(e.target.id==="usualToggle"||e.target.id==="ticketToggle"){const p=Object.assign({},push,{[e.target.id==="usualToggle"?"usual":"ticket"]:e.target.checked});try{await subscribe(p,true);$("#notifMsg").textContent="Saved."}catch(err){$("#notifMsg").textContent=err.message}}
+  if(e.target.id==="morningToggle"){try{await subscribe(Object.assign({},push,{morning:e.target.checked}),true);$("#notifMsg").textContent=e.target.checked?"Evening check is on.":"Evening check is off."}catch(err){$("#notifMsg").textContent=err.message}}
 });
 $("#form").addEventListener("input",saveForm);$("#form").addEventListener("submit",e=>e.preventDefault());
 
 function renderAll(){
   $("#routeLabel").textContent=`${city(cfg.from)} ↔ ${city(cfg.to)}`;
-  renderNight();renderDelays();renderNotif();
+  renderSky();renderTicket();renderNight();renderDelays();renderNotif();
 }
 
 // ---------- install guide (shown in the browser, never in the installed app) ----------
@@ -497,16 +617,16 @@ function renderInstall(){
   const plus='<svg viewBox="0 0 24 24" width="18" height="18" style="vertical-align:-3px" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>';
   if(small){
     el.className="install";
-    el.innerHTML=`<img src="icons/icon-192.png" alt=""><div><b>Get the Kvitt app</b><span>Add it to your home screen for reminders.</span></div><button class="go" id="installShow" type="button">How</button>`;
+    el.innerHTML=`<img src="icons/icon-192.png" alt=""><div><b>Get the Bro app</b><span>Add it to your home screen for reminders.</span></div><button class="go" id="installShow" type="button">How</button>`;
     el.hidden=false;return;
   }
   const steps=isIOS
-    ?[`Tap ${share} <b>Share</b> at the bottom of Safari`,`Scroll down and tap ${plus} <b>Add to Home Screen</b>`,`Open <b>Kvitt</b> from your home screen`]
+    ?[`Tap ${share} <b>Share</b> at the bottom of Safari`,`Scroll down and tap ${plus} <b>Add to Home Screen</b>`,`Open <b>Bro</b> from your home screen`]
     :deferredInstall?null
-    :[`Open the browser menu <b>⋮</b>`,`Tap <b>Install app</b> or <b>Add to Home screen</b>`,`Open <b>Kvitt</b> from your home screen`];
+    :[`Open the browser menu <b>⋮</b>`,`Tap <b>Install app</b> or <b>Add to Home screen</b>`,`Open <b>Bro</b> from your home screen`];
   el.className="install big";
-  el.innerHTML=`<div class="ihead"><img src="icons/icon-192.png" alt=""><div><b>Get Kvitt on your home screen</b><span>It works like a real app: full screen, one tap away, and with reminders before your last train home.</span></div></div>
-    ${steps?`<ol class="isteps">${steps.map(t=>`<li><span class="it">${t}</span></li>`).join("")}</ol>`:`<button class="go wide" id="installGo" type="button">Install Kvitt</button>`}
+  el.innerHTML=`<div class="ihead"><img src="icons/icon-192.png" alt=""><div><b>Get Bro on your home screen</b><span>It works like a real app: full screen, one tap away, and with reminders before your last train home.</span></div></div>
+    ${steps?`<ol class="isteps">${steps.map(t=>`<li><span class="it">${t}</span></li>`).join("")}</ol>`:`<button class="go wide" id="installGo" type="button">Install Bro</button>`}
     <button class="ilater" id="installHide" type="button">Continue in the browser</button>`;
   el.hidden=false;
 }
@@ -523,8 +643,9 @@ if(night&&night.date!==localDate()){night=null;store.set("kv-night",null)}
 fillForm();renderInstall();
 fetch("config.json",{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({})).then(c=>{
   SERVER=c&&c.server?String(c.server).replace(/\/$/,""):null;
+  SKY_VIDEO=c&&c.sunsetVideo||null;skyPhase="";
   renderAll();show(store.get("kv-view","today"));
-  if(push&&SERVER)subscribe(push.morning,true).catch(()=>{});
+  if(push&&SERVER)subscribe(push,true).catch(()=>{});
 });
 const RAW="https://raw.githubusercontent.com/dahlinpetter/delay-report/main/data/";
 const get=u=>fetch(u).then(r=>r.ok?r.json():null).catch(()=>null);
@@ -533,7 +654,9 @@ Promise.all([get(RAW+"page_history.json"),get(RAW+"delays.json")]).then(([h,l])=
   if(!h&&!l){$("#delaysIntro").textContent="Couldn't load the train data. Pull down to reload.";return}
   DATA=merge([h,l]);renderDelays();
 });
-setInterval(()=>{if(!document.hidden&&!$("#v-today").hidden)loadBoard()},60000);
+// default direction: towards work in the morning, home after noon
+dir=toMin(localHM())<12*60&&toMin(localHM())>=4*60?"work":"home";
+setInterval(()=>{renderSky();if(!document.hidden&&!$("#v-today").hidden)loadBoard()},60000);
 })();
 </script>
 </body>

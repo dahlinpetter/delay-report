@@ -1,5 +1,5 @@
 // Kvitt service worker: offline shell + push notifications
-const CACHE = "kvitt-v1";
+const CACHE = "bro-v2";
 const SHELL = ["./", "index.html", "manifest.json", "icons/icon-192.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {})); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))); self.clients.claim(); });
@@ -15,7 +15,7 @@ async function idFor(endpoint) {
 }
 self.addEventListener("push", e => {
   e.waitUntil((async () => {
-    let title = "Kvitt", body = "Open Kvitt for the latest train info.";
+    let title = "Bro", body = "Open Bro for the latest train info.";
     try {
       const cfg = await fetch("config.json", { cache: "no-store" }).then(r => r.json());
       const sub = await self.registration.pushManager.getSubscription();

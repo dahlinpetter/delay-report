@@ -1,4 +1,4 @@
-// Kvitt server (Cloudflare Worker)
+// Bro server (Cloudflare Worker)
 // - keeps the Trafiklab key secret and serves live departures
 // - stores push subscriptions and reminder plans in D1
 // - every minute: sends due train reminders and the evening "morning train was late" check
@@ -54,7 +54,8 @@ async function db(env) {
       env.DB.prepare("CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT)"),
       env.DB.prepare("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, sub TEXT, cfg TEXT, morning INTEGER DEFAULT 0, r1 TEXT, updated INTEGER)"),
       env.DB.prepare("CREATE TABLE IF NOT EXISTS reminders (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, due INTEGER, mins INTEGER, train TEXT, sched TEXT, frm TEXT, too TEXT, sent INTEGER DEFAULT 0)"),
-      env.DB.prepare("CREATE TABLE IF NOT EXISTS msgs (uid TEXT PRIMARY KEY, title TEXT, body TEXT, at INTEGER)")
+      env.DB.prepare("CREATE TABLE IF NOT EXISTS msgs (uid TEXT PRIMARY KEY, title TEXT, body TEXT, at INTEGER)"),
+      env.DB.prepare("CREATE TABLE IF NOT EXISTS checks (uid TEXT, kind TEXT, at TEXT, date TEXT, dep TEXT, frm TEXT, too TEXT)")
     ]);
     ready = true;
   }
@@ -122,7 +123,8 @@ async function departures(env, from, to, time) {
     sched: dp.scheduled, real: dp.realtime || dp.scheduled,
     delay: Math.round((dp.delay || 0) / 60), canceled: !!dp.canceled,
     platform: dp.realtime_platform?.designation || dp.scheduled_platform?.designation || "",
-    direction: dp.route?.direction || ""
+    direction: dp.route?.direction || "",
+    alerts: (dp.alerts || []).map(a => a.title || a.text || a.header || "").filter(Boolean).slice(0, 3)
   }));
 }
 
@@ -148,6 +150,34 @@ async function sendDueReminders(env) {
       body = `Leaves ${r.frm} at ${leaves}${t && t.platform ? `, track ${t.platform}` : ""}, in about ${r.mins} min.` + (r.mins <= 15 ? " Time to head to the station." : "");
     }
     await push(env, r.uid, r.sub, title, body).catch(() => {});
+  }
+}
+
+// Morning alert (40 min before the usual train) and ticket reminders
+async function runChecks(env) {
+  const now = Date.now(), lp = localParts(now), d = await db(env);
+  const weekday = lp.weekday !== "Sat" && lp.weekday !== "Sun";
+  const rows = (await d.prepare("SELECT c.*, u.sub FROM checks c JOIN users u ON u.id=c.uid WHERE c.at=? AND (c.date IS NULL OR c.date=?)").bind(lp.hm, lp.date).all()).results;
+  for (const c of rows) {
+    if (c.kind === "ticket") {
+      const end = new Date(c.dep + "T12:00:00Z");
+      const when = end.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" });
+      await push(env, c.uid, c.sub, "Your 30-day ticket runs out soon", `It's valid until ${when}. Buy a new one in Skånetrafiken's app, then tap "I bought a new ticket" in Bro.`).catch(() => {});
+      continue;
+    }
+    if (!weekday) continue;
+    const list = await departures(env, c.frm, c.too, `${lp.date}T${fmt(Math.max(0, toMin(c.dep) - 15))}`).catch(() => []);
+    const want = toMin(c.dep);
+    const t = list.filter(x => Math.abs(toMin(x.sched.slice(11, 16)) - want) <= 3).sort((a, b) => Math.abs(toMin(a.sched.slice(11, 16)) - want) - Math.abs(toMin(b.sched.slice(11, 16)) - want))[0];
+    if (!t) continue;
+    if (t.canceled) {
+      const next = list.find(x => !x.canceled && x.sched > t.sched);
+      await push(env, c.uid, c.sub, `Your ${c.dep} is cancelled`, next ? `Take the ${next.real.slice(11, 16)} from ${c.frm}${next.platform ? `, track ${next.platform}` : ""} instead.` : `Check the next departures from ${c.frm}.`).catch(() => {});
+    } else if (t.delay >= 5) {
+      await push(env, c.uid, c.sub, `Your ${c.dep} is ${t.delay} min late`, `Now expected to leave ${c.frm} at ${t.real.slice(11, 16)}${t.platform ? `, track ${t.platform}` : ""}.${t.alerts[0] ? " " + t.alerts[0] : ""}`).catch(() => {});
+    } else if (t.alerts.length) {
+      await push(env, c.uid, c.sub, `Disruption on your ${c.dep} train`, t.alerts[0]).catch(() => {});
+    }
   }
 }
 
@@ -177,7 +207,7 @@ async function morningCheck(env) {
     const pct = w.delay >= 60 ? 100 : w.delay >= 40 ? 75 : 50;
     const what = w.c ? `the ${fmt(w.dep)} was cancelled` : `the ${fmt(w.dep)} arrived ${w.delay} min late`;
     await push(env, u.id, u.sub, "Delay on your morning commute",
-      `This morning ${what} at ${c.to}. Were you on it? Mark it in Kvitt. If so, you may be entitled to about ${Math.round(trip * pct / 100)} kr.`).catch(() => {});
+      `This morning ${what} at ${c.to}. Were you on it? Mark it in Bro. If so, you may be entitled to about ${Math.round(trip * pct / 100)} kr.`).catch(() => {});
   }
 }
 
@@ -191,9 +221,11 @@ async function cleanup(env) {
   await d.batch([
     d.prepare("DELETE FROM reminders WHERE due < ?").bind(now - H),
     d.prepare("DELETE FROM msgs WHERE at < ?").bind(now - 24 * H),
-    d.prepare("DELETE FROM users WHERE morning=0 AND updated < ? AND id NOT IN (SELECT uid FROM reminders WHERE sent=0)").bind(now - 6 * H),
+    d.prepare("DELETE FROM users WHERE morning=0 AND updated < ? AND id NOT IN (SELECT uid FROM reminders WHERE sent=0) AND id NOT IN (SELECT uid FROM checks)").bind(now - 6 * H),
     d.prepare("DELETE FROM users WHERE updated < ?").bind(now - 30 * 24 * H),
-    d.prepare("DELETE FROM msgs WHERE uid NOT IN (SELECT id FROM users)")
+    d.prepare("DELETE FROM msgs WHERE uid NOT IN (SELECT id FROM users)"),
+    d.prepare("DELETE FROM checks WHERE uid NOT IN (SELECT id FROM users)"),
+    d.prepare("DELETE FROM checks WHERE kind='ticket' AND date < ?").bind(localParts(now - 7 * 24 * H).date)
   ]);
 }
 
@@ -224,7 +256,19 @@ export default {
         const c = {}; for (const k of ["from", "to", "o1", "o2", "r1", "type", "price", "factor"]) if (raw[k] != null) c[k] = raw[k];
         await (await db(env)).prepare("INSERT INTO users (id, sub, cfg, morning, r1, updated) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET sub=excluded.sub, cfg=excluded.cfg, morning=excluded.morning, r1=excluded.r1, updated=excluded.updated")
           .bind(id, JSON.stringify({ endpoint: b.sub.endpoint, keys: b.sub.keys || {} }), JSON.stringify(c), b.morning ? 1 : 0, c.r1 || null, Date.now()).run();
-        return json({ id });
+        // morning alerts and ticket reminders: replace this user's checks
+        const d = await db(env), checks = Array.isArray(b.checks) ? b.checks.slice(0, 4) : [];
+        const ops = [d.prepare("DELETE FROM checks WHERE uid=?").bind(id)];
+        for (const k of checks) {
+          if (k.kind === "usual" && /^\d\d:\d\d$/.test(k.dep || "") && STATIONS[k.from] && STATIONS[k.to])
+            ops.push(d.prepare("INSERT INTO checks (uid, kind, at, date, dep, frm, too) VALUES (?, 'usual', ?, NULL, ?, ?, ?)").bind(id, fmt((toMin(k.dep) - 40 + 1440) % 1440), k.dep, k.from, k.to));
+          if (k.kind === "ticket" && /^\d{4}-\d\d-\d\d$/.test(k.date || "")) {
+            const before = new Date(Date.parse(k.date + "T12:00:00Z") - 2 * 86400000).toISOString().slice(0, 10);
+            ops.push(d.prepare("INSERT INTO checks (uid, kind, at, date, dep, frm, too) VALUES (?, 'ticket', '18:00', ?, ?, NULL, NULL)").bind(id, before, k.date));
+          }
+        }
+        await d.batch(ops);
+        return json({ id, checks: ops.length - 1 });
       }
 
       if (p === "/plan" && req.method === "POST") {
@@ -253,6 +297,7 @@ export default {
         await d.batch([
           d.prepare("DELETE FROM reminders WHERE uid=?").bind(id),
           d.prepare("DELETE FROM msgs WHERE uid=?").bind(id),
+          d.prepare("DELETE FROM checks WHERE uid=?").bind(id),
           d.prepare("DELETE FROM users WHERE id=?").bind(id)
         ]);
         return json({ deleted: true });
@@ -260,14 +305,14 @@ export default {
 
       if (p === "/msg") {
         const m = await (await db(env)).prepare("SELECT title, body FROM msgs WHERE uid=?").bind(url.searchParams.get("id")).first();
-        return json(m || { title: "Kvitt", body: "Open Kvitt for the latest train info." });
+        return json(m || { title: "Bro", body: "Open Bro for the latest train info." });
       }
 
       if (p === "/test" && req.method === "POST") {
         const b = await req.json();
         const u = await (await db(env)).prepare("SELECT * FROM users WHERE id=?").bind(b.id).first();
         if (!u) return json({ error: "not subscribed" }, 400);
-        const status = await push(env, u.id, u.sub, "Kvitt notifications are on", "You'll get train reminders here.").catch(e => "failed: " + e.message);
+        const status = await push(env, u.id, u.sub, "Bro notifications are on", "You'll get train reminders here.").catch(e => "failed: " + e.message);
         return json({ status });
       }
 
@@ -278,7 +323,7 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    const jobs = [sendDueReminders(env), morningCheck(env)];
+    const jobs = [sendDueReminders(env), morningCheck(env), runChecks(env)];
     if (new Date(event.scheduledTime).getUTCMinutes() % 15 === 0) jobs.push(cleanup(env));
     ctx.waitUntil(Promise.all(jobs));
   }
