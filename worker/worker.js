@@ -228,8 +228,9 @@ async function morningCheck(env) {
     const w = late[0], trip = c.type === "single" ? Number(c.price || 0) : Number(c.price || 0) / Math.max(1, Number(c.factor || 20));
     const pct = w.delay >= 60 ? 100 : w.delay >= 40 ? 75 : 50;
     const what = w.c ? `the ${fmt(w.dep)} was cancelled` : `the ${fmt(w.dep)} arrived ${w.delay} min late`;
-    await push(env, u.id, u.sub, "Heading home? Finish your claim",
-      `This morning ${what} at ${c.to}. If you were on it, claim it on the way home: about ${Math.round(trip * pct / 100)} kr, done in a minute.`, "view=delays").catch(() => {});
+    const amt = Math.round(trip * pct / 100 * (c.payout === "code" ? 1.5 : 1));
+    await push(env, u.id, u.sub, `You have ${amt} kr to claim`,
+      `This morning ${what} at ${c.to}. Were you on it? Tap now and finish the claim on your way home. It takes a minute.`, `review=${lp.date}|out|${w.dep}`).catch(() => {});
   }
 }
 
@@ -405,7 +406,7 @@ export default {
           if (k.kind === "usual" && /^\d\d:\d\d$/.test(k.dep || "") && STATIONS[k.from] && STATIONS[k.to])
             ops.push(d.prepare("INSERT INTO checks (uid, kind, at, date, dep, frm, too) VALUES (?, 'usual', ?, NULL, ?, ?, ?)").bind(id, fmt((toMin(k.dep) - 40 + 1440) % 1440), k.dep, k.from, k.to));
           if (k.kind === "window" && /^\d\d:\d\d$/.test(k.o1 || "") && /^\d\d:\d\d$/.test(k.o2 || "") && STATIONS[k.from] && STATIONS[k.to])
-            ops.push(d.prepare("INSERT INTO checks (uid, kind, at, date, dep, frm, too) VALUES (?, 'window', ?, NULL, ?, ?, ?)").bind(id, fmt((toMin(k.o1) - 45 + 1440) % 1440), `${k.o1}-${k.o2}`, k.from, k.to));
+            ops.push(d.prepare("INSERT INTO checks (uid, kind, at, date, dep, frm, too) VALUES (?, 'window', ?, NULL, ?, ?, ?)").bind(id, fmt((toMin(k.o1) - 30 + 1440) % 1440), `${k.o1}-${k.o2}`, k.from, k.to));
           if (k.kind === "ticket" && /^\d{4}-\d\d-\d\d$/.test(k.date || "")) {
             const before = new Date(Date.parse(k.date + "T12:00:00Z") - 2 * 86400000).toISOString().slice(0, 10);
             ops.push(d.prepare("INSERT INTO checks (uid, kind, at, date, dep, frm, too) VALUES (?, 'ticket', '18:00', ?, ?, NULL, NULL)").bind(id, before, k.date));

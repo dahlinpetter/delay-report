@@ -684,8 +684,8 @@ function guessSide(){const m=toMin(localHM());return m<12*60?"home":m<toMin(cfg.
 async function locate(prompt){
   if(!navigator.geolocation)return null;
   // once you've chosen to use location, ask directly on open (iPhone web apps may still ask)
-  if(!prompt&&!store.get("kv-loc",false))return null;
-  return new Promise(res=>navigator.geolocation.getCurrentPosition(p=>{store.set("kv-loc",true);res([p.coords.latitude,p.coords.longitude])},()=>res(null),{enableHighAccuracy:false,maximumAge:600000,timeout:8000}));
+  if(!prompt&&!store.get("kv-loc",true))return null;
+  return new Promise(res=>navigator.geolocation.getCurrentPosition(p=>{store.set("kv-loc",true);res([p.coords.latitude,p.coords.longitude])},e=>{if(e.code===1)store.set("kv-loc",false);res(null)},{enableHighAccuracy:false,maximumAge:600000,timeout:8000}));
 }
 function sideOf(pos){const h=stn(cfg.from),w=stn(cfg.to);if(!pos||!h||!w)return null;return kmBetween(pos,h)<=kmBetween(pos,w)?"home":"work"}
 async function askLocation(){const pos=await locate(true);if(pos){side={s:sideOf(pos),loc:true};dir=side.s==="work"?"home":"work";renderStatus(true)}else toast("Couldn't get your location. You can allow it in your phone's settings.")}
@@ -709,17 +709,19 @@ async function renderStatus(keepSide){
       :`<div class="kicker">${atWork?"Train home":"Trains"}</div><div class="main" style="font-size:22px">No trains in the next hour</div>`;
   }else if(!atWork){
     const today=DATA?claimableToday():null;
-    html=`<div class="main" style="font-size:24px">${m<17*60?"Have a good day":"Welcome home"}</div><div class="sub">${today?`Your ${fmt(today.dep)} was ${today.eff} min late, worth about ${kr(tripValue()*level(today.eff)/100)} kr.`:m<17*60?"Backtrack keeps an eye on your trains.":"Hope you had a smooth trip."}</div>${today?`<div class="row2"><button class="btn small" type="button" data-view="delays">Claim it</button></div>`:""}`;
+    html=`<div class="main" style="font-size:24px">${m<17*60?"Have a good day":"Welcome home"}</div><div class="sub">${today?`Your ${fmt(today.dep)} was ${today.eff} min late, worth about ${kr(tripValue()*level(today.eff)/100)} kr.`:m<17*60?"Backtrack keeps an eye on your trains.":"Hope you had a smooth trip."}</div>${today?`<div class="row2"><button class="btn small" type="button" data-review="${localDate()}|${today.leg}">Finish claim</button></div>`:""}`;
   }
+  const ct=DATA?claimableToday():null;
+  if(ct&&(atWork||wantsTrain)&&!claims[localDate()+"|"+ct.leg])html+=`<div class="row2" style="border-top:1px solid var(--line);padding-top:12px"><span class="small" style="flex:1">Your ${fmt(ct.dep)} today was ${ct.eff} min late. <b style="color:var(--good)">≈ ${kr(tripValue()*level(ct.eff)/100)} kr</b> to claim.</span><button class="btn small" type="button" data-review="${localDate()}|${ct.leg}">Finish claim</button></div>`;
   const d=daysLeft();
   if(d!=null&&d<=3)html+=`<div class="row2"><span class="small" style="color:var(--l50)">Your 30-day ticket ${d<0?"has run out":d===0?"runs out today":d===1?"runs out tomorrow":`runs out in ${d} days`}.</span><button class="linkbtn" type="button" data-tool="ticket">Ticket</button></div>`;
-  if(!side.loc&&navigator.geolocation&&!store.get("kv-loc",false))html+=`<div class="row2"><button class="linkbtn" type="button" id="locOn" style="padding:0;font-size:13px">Use my location to pick the right direction</button></div>`;
+  if(!side.loc&&navigator.geolocation&&!store.get("kv-loc",true))html+=`<div class="row2"><button class="linkbtn" type="button" id="locOn" style="padding:0;font-size:13px">Use my location to pick the right direction</button></div>`;
   el.innerHTML=html;renderTiles();
 }
 function claimableToday(){
   const d=localDate();if(!DATA.byDay[d])return null;
   const legs=[[cfg.from,cfg.to,cfg.o1,cfg.o2],[cfg.to,cfg.from,cfg.r1,cfg.r2]];let best=null;
-  for(const[f,t,a,b]of legs)for(const j of journeys(d,f,t))if(j.dep>=toMin(a)&&j.dep<=toMin(b)&&level(j.eff)&&(!best||j.eff>best.eff))best=j;
+  legs.forEach(([f,t,a,b],k)=>{for(const j of journeys(d,f,t))if(j.dep>=toMin(a)&&j.dep<=toMin(b)&&level(j.eff)&&(!best||j.eff>best.eff))best=Object.assign({},j,{leg:k?"ret":"out"})});
   return best;
 }
 
@@ -843,6 +845,7 @@ const PERIODS=[["two","2 months"],["month","30 days"],["week","This week"]];
 function renderDelays(){
   $("#periodSeg").innerHTML=PERIODS.map(([id,l])=>`<button type="button" data-p="${id}" aria-selected="${id===period}">${l}</button>`).join("");
   if(!DATA){$("#summary").innerHTML=`<p class="muted" style="margin:0">Loading train data…</p>`;$("#paywall").hidden=true;$("#tripsCard").hidden=true;return}
+  if(reviewTrip&&!unlocked){unlocked=true;store.set("kv-unlocked",true)}
   const a=analyse(),yr=localDate().slice(0,4),cl=Object.values(claims);
   const waiting=cl.filter(c=>c.s==="sent").length,got=cl.filter(c=>c.s==="paid"&&String(c.date).startsWith(yr)).reduce((s,c)=>s+Number(c.amt||0),0);
   const open=a.items.filter(i=>i.chosen&&!claims[i.id]).reduce((s,i)=>s+i.value,0);
@@ -864,6 +867,7 @@ function renderDelays(){
   }
   const list=a.items.slice().sort((x,y)=>y.day.localeCompare(x.day)||x.leg.k.localeCompare(y.leg.k));
   $("#trips").innerHTML=list.length?list.map(tripBlock).join(""):`<p class="small muted" style="margin:0">No delayed trips in this period.</p>`;
+  if(reviewTrip){const el=$("#trip-"+reviewTrip.replace("|","-"));if(el){reviewTrip=null;setTimeout(()=>{el.scrollIntoView({behavior:"smooth",block:"center"});el.classList.add("attn")},60)}}
 }
 function tripBlock(i){
   const c=claims[i.id];
@@ -872,7 +876,7 @@ function tripBlock(i){
     return`<div class="tr${on?" sel":""}"><div class="t">${fmt(j.dep)}</div>
       <div class="info"><b>Arrived ${fmt(j.arr+j.eff)}</b>${j.train?`Train ${esc(j.train)} `:""}${j.cancelled?`<span class="tag c">Cancelled</span>`:`<span class="tag l${L}">+${j.eff} min</span>`}<span class="worth">≈ ${kr(tripValue()*L/100)} kr</span>${checkins[i.id]&&checkins[i.id].dep===j.dep?` <span class="tag in">Checked in on board ✓</span>`:""}</div>
       ${on?(c?"<span></span>":`<button class="pick" type="button" data-unclaim="${i.id}">Change</button>`):`<button class="pick" type="button" data-claim="${i.id}|${j.dep}">Claim</button>`}</div>`}).join("");
-  return`<div class="trip"><div class="triphead"><b>${dayLabel(i.day)} · ${i.leg.name}</b>${st}</div><div class="trains">${rows}</div>${i.chosen?claimPanel(i):""}</div>`;
+  return`<div class="trip" id="trip-${i.id.replace("|","-")}"><div class="triphead"><b>${dayLabel(i.day)} · ${i.leg.name}</b>${st}</div><div class="trains">${rows}</div>${i.chosen?claimPanel(i):""}</div>`;
 }
 function claimPanel(i){
   const j=i.chosen,c=claims[i.id];
@@ -899,6 +903,7 @@ function claimStatus(i){
 // ---------- Check-in on board ----------
 // Reads the phone's location once, checks it's on the line between the right stations,
 // and keeps only "checked in on the 16:29 at 16:41". Coordinates are never stored or sent.
+let reviewTrip=null;
 let checkins=store.get("kv-checkins",{}),ciCtx=null,pendingClaim=null;
 // Rail line Lund C - København H, with points along the Öresund Bridge
 const LINE=[["Lund C",55.7056,13.1867],[null,55.6720,13.1350],[null,55.6370,13.0750],["Malmö C",55.6091,13.0003],["Triangeln",55.5947,13.0011],["Hyllie",55.5627,12.9755],
@@ -988,6 +993,7 @@ async function openOnTrain(){
 function handleLink(q){
   const p=new URLSearchParams(q);
   if(p.get("view")==="delays"){show("delays");return}
+  if(p.get("review")){const[date,leg]=p.get("review").split("|");reviewTrip=date+"|"+leg;show("delays");return}
   if(p.get("checkin")){
     const[date,leg,dep,train]=p.get("checkin").split("|"),from=leg==="ret"?cfg.to:cfg.from,to=leg==="ret"?cfg.from:cfg.to;
     show("today");openCheckin({date,leg,dep:Number(dep),train,from,to});
@@ -1110,7 +1116,7 @@ function fillForm(){
   if(!$("#f-from").options.length){const opts=STATIONS.map(s=>`<option>${s}</option>`).join("");$("#f-from").innerHTML=opts;$("#f-to").innerHTML=opts}
   for(const[k,id]of Object.entries(F))$(id).value=cfg[k]??"";
   syncTicketFields();fillMe();
-  if($("#locToggle")){$("#locToggle").checked=!!store.get("kv-loc",false);$("#locTip").hidden=!(isIOS&&store.get("kv-loc",false))}
+  if($("#locToggle")){$("#locToggle").checked=!!store.get("kv-loc",true);$("#locTip").hidden=!(isIOS&&store.get("kv-loc",true))}
   const yr=localDate().slice(0,4),ty=tickets.filter(t=>t.date.startsWith(yr));
   $("#ticketLog").textContent=ty.length?`Tickets logged in ${yr}: ${ty.length}, ${kr(ty.reduce((s,t)=>s+t.price,0))} kr in total.`:"";
 }
@@ -1134,10 +1140,10 @@ function renderNotif(){
   else{
     const hasUsual=!!(cfg.u1||cfg.u2),hasTicket=cfg.type==="30"&&!!cfg.exp;
     body=`<p class="status ok" style="margin:0 0 4px">Notifications are on</p>
-    <label class="switch"><div><b>Morning alert</b><span>At ${esc(fmt((toMin(cfg.o1||"07:00")-45+1440)%1440))}, 45 min before your morning window, if trains to ${esc(city(cfg.to))} are late or cancelled. Time to decide: go later or work from home?</span></div><input type="checkbox" id="earlyToggle" ${push.early?"checked":""}></label>
+    <label class="switch"><div><b>Morning alert</b><span>At ${esc(fmt((toMin(cfg.o1||"07:00")-30+1440)%1440))}, 30 min before your morning window, if trains to ${esc(city(cfg.to))} are late or cancelled. Time to decide: go later or work from home?</span></div><input type="checkbox" id="earlyToggle" ${push.early?"checked":""}></label>
     <label class="switch"><div><b>Late-train check-in</b><span>When a train in your time windows runs 18+ min late, ask if you're on it. If you check in and it arrives 20+ min late, your claim is ready to sign.</span></div><input type="checkbox" id="watchToggle" ${push.watch?"checked":""}></label>
     <label class="switch"><div><b>Friday summary</b><span>At 16:00 on Fridays: how much your late trains this week are worth, in pizzas and beers</span></div><input type="checkbox" id="fridayToggle" ${push.friday?"checked":""}></label>
-    <label class="switch"><div><b>Evening check</b><span>At ${esc(cfg.r1)}, when you head home: if a morning train was 20+ min late, finish the claim on the train</span></div><input type="checkbox" id="morningToggle" ${push.morning?"checked":""}></label>
+    <label class="switch"><div><b>Evening check</b><span>At ${esc(cfg.r1)}, when you head home: if a morning train was 20+ min late, a reminder to finish your claim on the train</span></div><input type="checkbox" id="morningToggle" ${push.morning?"checked":""}></label>
     <label class="switch"><div><b>Ticket reminder</b><span>${hasTicket?"Two days before your 30-day ticket runs out":"Add the date your ticket is valid until above"}</span></div><input type="checkbox" id="ticketToggle" ${push.ticket?"checked":""} ${hasTicket?"":"disabled"}></label>
     <div class="row" style="margin-top:12px"><button class="btn small ghost" id="notifTest" type="button">Send a test</button><button class="btn small ghost" id="notifDelete" type="button">Turn off and delete my data</button></div>`;
   }
@@ -1249,6 +1255,7 @@ document.addEventListener("click",async e=>{
   if(d.view){if(d.view==="today"&&!$("#v-today").hidden&&tool){openTool("");return}show(d.view);return}
   if(d.dir){dir=d.dir;loadBoard();return}
   if(d.tool!=null){openTool(d.tool);return}
+  if(d.review){reviewTrip=d.review;show("delays");return}
   if(d.rleg){relLeg=d.rleg;renderReliable();return}
   if(b.id==="locOn"){askLocation();return}
   if(b.id==="addPurchase"){addPurchase();return}
