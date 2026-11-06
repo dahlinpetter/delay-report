@@ -40,6 +40,7 @@ jobs:
           fi
           cd worker
           npm install --no-audit --no-fund wrangler@4 >/dev/null
+          set -o pipefail
           npx wrangler deploy 2>&1 | tee deploy.log
           printf '%s' "$TRAFIKLAB_KEY" | npx wrangler secret put TRAFIKLAB_KEY
           url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
