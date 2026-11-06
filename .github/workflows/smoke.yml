@@ -7,9 +7,9 @@ jobs:
       - name: Call the server
         run: |
           S=https://kvitt.petter-kvitt.workers.dev
-          sleep 20
-          echo "--- vapid"; curl -s "$S/vapid" | head -c 120; echo
-          echo "--- trains home now"; curl -s "$S/trains?from=K%C3%B8benhavn%20H&to=Malm%C3%B6%20C" | head -c 900; echo
-          echo "--- trains to work"; curl -s "$S/trains?from=Malm%C3%B6%20C&to=K%C3%B8benhavn%20H" | head -c 500; echo
+          for i in $(seq 1 20); do c=$(curl -s -o /dev/null -w '%{http_code}' "$S/vapid"); echo "try $i: $c"; [ "$c" = 200 ] && break; sleep 20; done
+          echo "--- vapid"; curl -sS "$S/vapid" | head -c 120; echo
+          echo "--- trains home now"; curl -sS "$S/trains?from=K%C3%B8benhavn%20H&to=Malm%C3%B6%20C" | head -c 900; echo
+          echo "--- trains to work"; curl -sS "$S/trains?from=Malm%C3%B6%20C&to=K%C3%B8benhavn%20H" | head -c 500; echo
           T=$(TZ=Europe/Stockholm date +%Y-%m-%dT23:30)
-          echo "--- trains around $T"; curl -s "$S/trains?from=K%C3%B8benhavn%20H&to=Malm%C3%B6%20C&time=$T" | head -c 900; echo
+          echo "--- trains around $T"; curl -sS "$S/trains?from=K%C3%B8benhavn%20H&to=Malm%C3%B6%20C&time=$T" | head -c 900; echo
