@@ -276,13 +276,19 @@ export default {
         const u = await d.prepare("SELECT id FROM users WHERE id=?").bind(b.id).first();
         if (!u) return json({ error: "turn on notifications first" }, 400);
         await d.prepare("DELETE FROM reminders WHERE uid=? AND sent=0").bind(b.id).run();
-        const depAt = localToEpoch(b.sched), now = Date.now(), set = [];
-        for (const mins of (b.mins || [60, 30, 15])) {
-          const due = depAt - mins * 60000;
-          if (due < now - 60000) continue;
-          await d.prepare("INSERT INTO reminders (uid, due, mins, train, sched, frm, too) VALUES (?, ?, ?, ?, ?, ?, ?)")
-            .bind(b.id, due, mins, String(b.train || ""), b.sched, b.from, b.to).run();
-          set.push(mins);
+        // one or several trains: { trains: [{sched, train}] } (older apps send a single sched/train)
+        const trains = (Array.isArray(b.trains) ? b.trains : (b.sched ? [{ sched: b.sched, train: b.train }] : [])).slice(0, 6);
+        const now = Date.now(), set = [];
+        for (const t of trains) {
+          if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(t.sched || "")) continue;
+          const depAt = localToEpoch(t.sched);
+          for (const mins of (b.mins || [60, 30, 15])) {
+            const due = depAt - mins * 60000;
+            if (due < now - 60000) continue;
+            await d.prepare("INSERT INTO reminders (uid, due, mins, train, sched, frm, too) VALUES (?, ?, ?, ?, ?, ?, ?)")
+              .bind(b.id, due, mins, String(t.train || ""), t.sched, b.from, b.to).run();
+            set.push(`${t.sched.slice(11, 16)}-${mins}`);
+          }
         }
         return json({ set });
       }

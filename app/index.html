@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Backtrack</title>
 <meta name="description" content="Your Öresund commuting companion: live trains, reminders for the last train home, and a log of delayed trips.">
-<meta name="theme-color" content="#d6f2e2">
+<meta name="theme-color" content="#07121f">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -14,23 +14,23 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap">
 <style>
 :root{
-  /* Backtrack: a single bright theme. Airy mint ground, white surfaces, deep forest actions */
-  --bg:#f3faf6;--card:#ffffff;--ink:#0d2a20;--muted:#5a7368;--line:#e1efe7;
-  --brand:#0b3b2c;--accent:#1fb866;--accent-ink:#ffffff;--soft:#e8f6ee;
-  --action:#0b3b2c;--action-ink:#ffffff;
-  --l50:#e9a23b;--l75:#e2703a;--l100:#d2453d;--warn-bg:#fff6e8;
-  --shadow:0 1px 2px rgba(11,59,44,.05),0 10px 30px rgba(11,59,44,.07);
+  /* Backtrack: Öresund at night. Deep sea-blue ground, raised navy surfaces, bright water-blue accents */
+  --bg:#07121f;--card:#0e1d30;--card2:#12253b;--ink:#eaf2fb;--muted:#93a9c0;--line:#1d3550;
+  --brand:#ffffff;--accent:#5ab8ff;--accent-ink:#04111d;--soft:#152c45;
+  --action:#2585ea;--action-ink:#ffffff;
+  --l50:#f0a945;--l75:#f07a45;--l100:#ef5a52;--warn-bg:#2b2416;
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset,0 12px 30px -14px rgba(0,0,0,.6);
   --display:"Manrope",system-ui,sans-serif;--body:"Inter",system-ui,sans-serif;
-  color-scheme:light;
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--body);-webkit-font-smoothing:antialiased;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
-header{position:sticky;top:0;z-index:5;overflow:hidden;color:var(--brand);background:var(--sky,linear-gradient(180deg,#d6f2e2,#f3faf6));padding:calc(14px + env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) 22px max(20px,env(safe-area-inset-left,0px))}
+header{position:sticky;top:0;z-index:5;overflow:hidden;color:var(--brand);background:var(--sky,linear-gradient(180deg,#0f2f52,#07121f));padding:calc(14px + env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) 22px max(20px,env(safe-area-inset-left,0px))}
 header .skymedia{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
 header .hrow{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px}
-header .span{position:absolute;left:0;right:0;bottom:0;width:100%;height:40px;z-index:1;color:currentColor;opacity:.12}
+header .span{position:absolute;left:0;right:0;bottom:0;width:100%;height:40px;z-index:1;color:#9cc9ef;opacity:.16}
 header.dark{color:#fff}
 header.dark .span{opacity:.35}
 .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:23px;letter-spacing:-.02em;line-height:1}
@@ -64,8 +64,8 @@ select,input{font:inherit;width:100%;padding:12px;min-height:48px;border:1px sol
 label{display:grid;gap:4px;font-size:13px;font-weight:600}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .trains{display:grid;gap:6px;margin-top:10px}
-.tr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:#fff}
-.tr.sel{border-color:var(--accent);background:var(--soft)}
+.tr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:var(--card2)}
+.tr.sel{border-color:var(--accent);background:var(--soft);box-shadow:0 0 0 1px var(--accent) inset}
 .tr .t{font-family:var(--display);font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
 .tr .t s{font-weight:600;font-size:13px;color:var(--muted);margin-right:4px}
 .tr .info{font-size:13px;color:var(--muted);min-width:0;overflow-wrap:anywhere}
@@ -84,7 +84,8 @@ label{display:grid;gap:4px;font-size:13px;font-weight:600}
 .dayhead b{font-size:15px}
 .status{font-size:13px}
 .status.ok{color:var(--accent);font-weight:600}
-.pick{border:1px solid var(--line);background:#fff;color:var(--brand);border-radius:12px;padding:9px 12px;min-height:40px;font-size:13px;font-weight:600;white-space:nowrap}
+a{color:var(--accent)}
+.pick{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:12px;padding:9px 12px;min-height:40px;font-size:13px;font-weight:600;white-space:nowrap}
 .pick[aria-pressed="true"]{background:var(--action);color:var(--action-ink);border-color:var(--action)}
 .claim{margin-top:8px;background:var(--soft);border-radius:12px;padding:12px;display:grid;gap:6px;font-size:13px}
 .cf{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:8px;align-items:center}
@@ -92,12 +93,12 @@ label{display:grid;gap:4px;font-size:13px;font-weight:600}
 .lock{position:relative}
 .paywall{text-align:center;display:grid;gap:8px;justify-items:center}
 .disclaimer{font-size:12.5px;color:var(--muted);border-left:3px solid var(--accent);padding-left:10px}
-nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(255,255,255,.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(7,18,31,.88);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
 nav .in{display:flex;max-width:560px;width:100%}
 nav button{flex:1;border:0;background:transparent;color:var(--muted);padding:6px 0;font-size:12px;font-weight:600;display:grid;justify-items:center;gap:2px}
 nav button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
-nav button[aria-selected="true"]{color:var(--brand)}
-.install{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;background:#fff;color:var(--ink);border-radius:22px;padding:16px;box-shadow:var(--shadow);border:1px solid #cdebd9}
+nav button[aria-selected="true"]{color:var(--accent)}
+.install{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--card);color:var(--ink);border-radius:22px;padding:16px;box-shadow:var(--shadow);border:1px solid var(--line)}
 .install img{width:44px;height:44px;border-radius:11px}
 .install b{display:block;font-size:15px}
 .install span{font-size:13.5px;color:var(--muted)}
@@ -117,11 +118,35 @@ nav button[aria-selected="true"]{color:var(--brand)}
 .install .ihead span{display:block;font-weight:400;line-height:1.4}
 .isteps li{font-weight:400}
 .install .ilater{font-size:13px;opacity:.85;text-decoration:underline;padding:0;justify-self:center}
-footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px}
+#splash{position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;place-items:center;animation:splashOut .22s ease-in .42s forwards}
+#splash svg{width:min(320px,70vw);height:auto;overflow:visible}
+#splash .rail{stroke:var(--accent);stroke-width:3;stroke-linecap:round;stroke-dasharray:300;stroke-dashoffset:300;animation:draw .4s cubic-bezier(.6,0,.2,1) forwards}
+#splash .ties{stroke:var(--line);stroke-width:2;opacity:.9}
+#splash .train{fill:var(--brand);animation:ride .42s cubic-bezier(.6,0,.2,1) forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes ride{from{transform:translateX(0)}to{transform:translateX(280px)}}
+@keyframes splashOut{to{opacity:0;visibility:hidden}}
+@media (prefers-reduced-motion:reduce){#splash{display:none}}
+details.legal{padding:0}
+details.legal summary{list-style:none;cursor:pointer;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;font-weight:600}
+details.legal summary::-webkit-details-marker{display:none}
+details.legal summary::after{content:"";width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .2s}
+details.legal[open] summary::after{transform:rotate(-135deg)}
+details.legal .lbody{padding:0 20px 18px;display:grid;gap:4px}
+details.legal h4{margin:10px 0 2px;font-size:13px;color:var(--ink)}
+.clock{display:flex;align-items:center;justify-content:center;gap:6px;margin:14px 0 6px}
+.clock .col{display:grid;justify-items:center;gap:2px}
+.clock .digits{font-family:var(--display);font-weight:600;font-size:52px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em;min-width:76px;text-align:center}
+.clock .sep{font-family:var(--display);font-size:46px;font-weight:600;color:var(--muted);padding-bottom:6px}
+.clock button{border:0;background:var(--soft);color:var(--ink);width:56px;height:40px;border-radius:12px;display:grid;place-items:center}
+.clock button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.clock-note{text-align:center;font-size:13px;color:var(--muted);margin:0 0 6px}
+.morelink{border:0;background:none;color:var(--accent);font-size:13px;font-weight:600;padding:8px 0 0}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
 </head>
 <body>
+<div id="splash" aria-hidden="true"><svg viewBox="0 0 320 40"><path class="ties" d="M20 14v12M50 14v12M80 14v12M110 14v12M140 14v12M170 14v12M200 14v12M230 14v12M260 14v12M290 14v12"/><path class="rail" d="M10 20H310"/><g class="train"><rect x="2" y="12" width="26" height="16" rx="6"/></g></svg></div>
 <header id="sky">
   <div id="skymedia"></div>
   <svg class="span" viewBox="0 0 400 46" preserveAspectRatio="xMidYMax slice" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M0 38h400"/><path d="M140 4v40M260 4v40M138 4h4M258 4h4"/><path d="M140 8 60 38M140 8 80 38M140 8 100 38M140 8 120 38M140 8l20 30M140 8l40 30M140 8l60 30M260 8l-60 30M260 8l-40 30M260 8l-20 30M260 8l20 30M260 8l40 30M260 8l60 30M260 8l80 30"/><path d="M0 44h400" stroke-width="5"/></svg>
@@ -165,7 +190,6 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px
       <div class="stats" id="logStats"></div>
       <div id="log"></div>
     </div>
-    <p class="disclaimer">Backtrack shows delays from public traffic data. Only claim compensation for trips you actually made with a valid ticket. Amounts are estimates. Skånetrafiken assesses every claim.</p>
   </section>
 
   <!-- SETTINGS -->
@@ -204,12 +228,16 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px
       <p class="small muted" id="saved" style="margin:0;min-height:18px"></p>
     </form>
     <div class="card" id="notifCard"></div>
-    <div class="card">
-      <h3>About</h3>
-      <p class="small">Train data from <a href="https://www.trafiklab.se" target="_blank" rel="noopener">Trafiklab.se</a> (CC-BY 4.0) and its KoDa archive. Backtrack is an independent service and is not affiliated with Skånetrafiken, Öresundståg or DSB.</p>
-    </div>
-    <div class="card" id="privacy">
-      <h3>Privacy</h3>
+    <details class="card legal" id="legal">
+      <summary>About, privacy and data</summary>
+      <div class="lbody small">
+        <h4>Train data</h4>
+        <p>Live and historical train data from <a href="https://www.trafiklab.se" target="_blank" rel="noopener">Trafiklab.se</a> (CC-BY 4.0), including its KoDa archive.</p>
+        <h4>Independent service</h4>
+        <p>Backtrack is not affiliated with Skånetrafiken, Öresundståg or DSB.</p>
+        <h4>Compensation</h4>
+        <p>Backtrack shows delays from public traffic data. Only claim compensation for trips you actually made with a valid ticket. Amounts are estimates, and Skånetrafiken assesses every claim.</p>
+        <h4>Privacy</h4>
       <p class="small">Backtrack has no accounts and never asks for your name, email or phone number. Your commute, trip log and claims are stored only on this phone.</p>
       <p class="small">If you turn on notifications, Backtrack's server stores your phone's push address and the stations and times it needs for your reminders. Nothing else.</p>
       <ul class="small" style="margin:0 0 10px;padding-left:18px">
@@ -219,10 +247,10 @@ footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 16px 16px
         <li>"Turn off and delete my data" deletes everything immediately.</li>
       </ul>
       <p class="small muted" style="margin:0">The server runs on Cloudflare and the app is hosted on GitHub, which process data on Backtrack's behalf. Questions or requests: contact details will be added here.</p>
-    </div>
+      </div>
+    </details>
   </section>
 </main>
-<footer>Data: Trafiklab.se (CC-BY 4.0)</footer>
 
 <nav aria-label="Main"><div class="in">
   <button type="button" data-view="today" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M8 21l2-4m6 4-2-4M5 11h14"/><circle cx="9" cy="14" r=".6"/><circle cx="15" cy="14" r=".6"/></svg>Today</button>
@@ -243,6 +271,7 @@ let claims=store.get("kv-claims",null);   // id -> {s:"sent"|"paid", amt, date}
 if(!claims){claims={};for(const id of store.get("kv-claimed",[]))claims[id]={s:"sent",date:new Date().toISOString().slice(0,10)};store.set("kv-claims",claims)}
 let tickets=store.get("kv-tickets",[]);     // [{date, price}]
 let unlocked=store.get("kv-unlocked",false);
+let showOnTime=new Set();
 let period="two", dir="home", openClaim=null, DATA=null, SERVER=null;
 let push=store.get("kv-push",null);        // {id, morning, usual, ticket}
 let night=store.get("kv-night",null);      // {date, time, plan:{train, sched}}
@@ -276,17 +305,17 @@ function renderSky(){
   const phase=Math.abs(now-set)<45*M?"sunset":Math.abs(now-rise)<40*M?"sunrise":(now>rise&&now<set)?"day":"night";
   if(phase===skyPhase)return;skyPhase=phase;
   const h=$("#sky"),grad={
-    day:"linear-gradient(180deg,#d6f2e2 0%,#f3faf6 100%)",
-    sunrise:"linear-gradient(180deg,#fbe1d6 0%,#fdf0e3 60%,#f3faf6 100%)",
-    sunset:"linear-gradient(180deg,#f7c9b4 0%,#fbdcc2 45%,#fdeedd 75%,#f3faf6 100%)",
-    night:"linear-gradient(180deg,#dde5f2 0%,#eaf0f4 60%,#f3faf6 100%)"}[phase];
+    day:"linear-gradient(180deg,#14406b 0%,#0c2742 60%,#07121f 100%)",
+    sunrise:"linear-gradient(180deg,#3a3f73 0%,#8a5a78 45%,#2a2f52 80%,#07121f 100%)",
+    sunset:"linear-gradient(180deg,#2c2f63 0%,#7c4a76 40%,#c8735c 70%,#1a2440 92%,#07121f 100%)",
+    night:"linear-gradient(180deg,#040b15 0%,#07121f 100%)"}[phase];
   h.style.setProperty("--sky",grad);
   const media=$("#skymedia");
   if(phase==="sunset"&&SKY_VIDEO&&!matchMedia("(prefers-reduced-motion: reduce)").matches)
     media.innerHTML=`<video class="skymedia" src="${SKY_VIDEO}" autoplay muted loop playsinline></video>`;
   else media.innerHTML="";
   h.classList.toggle("dark",!!media.innerHTML);
-  document.querySelector('meta[name="theme-color"]').content={day:"#d6f2e2",sunrise:"#fbe1d6",sunset:"#f7c9b4",night:"#dde5f2"}[phase];
+  document.querySelector('meta[name="theme-color"]').content={day:"#14406b",sunrise:"#3a3f73",sunset:"#2c2f63",night:"#040b15"}[phase];
 }
 
 // ---------- views ----------
@@ -328,34 +357,65 @@ async function renderNight(){
       <div class="row"><button class="btn" id="nightYes" type="button">Yes, remind me</button><button class="btn ghost" id="nightNo" type="button">Not tonight</button></div>`;
     return;
   }
-  const opts=timeOptions().map(m=>`<option value="${m}" ${String(m)===String(night.min)?"selected":""}>${fmt(m)}${m>=1440?" (after midnight)":""}</option>`).join("");
+  if(night.plan&&!night.plans){night.plans=[night.plan];delete night.plan}
+  night.plans=night.plans||[];
+  const up='<svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>',dn='<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>';
   c.innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">${night.auto?"Heading home tonight?":`Night out in ${esc(city(work))}`}</h2><button class="btn ghost small" id="nightOff" type="button">Cancel</button></div>
-    <label style="margin-top:10px">I want to head home around<select id="nightTime">${opts}</select></label>
+    <p class="clock-note" style="margin-top:12px">I want to head home around</p>
+    <div class="clock" role="group" aria-label="Time to head home">
+      <div class="col"><button type="button" data-clock="60" aria-label="One hour later">${up}</button><div class="digits" id="clockH"></div><button type="button" data-clock="-60" aria-label="One hour earlier">${dn}</button></div>
+      <div class="sep">:</div>
+      <div class="col"><button type="button" data-clock="15" aria-label="15 minutes later">${up}</button><div class="digits" id="clockM"></div><button type="button" data-clock="-15" aria-label="15 minutes earlier">${dn}</button></div>
+    </div>
     <div id="nightPlan" class="small" style="margin-top:10px"></div>
     <div id="nightTrains" class="trains"><p class="small muted">Loading trains…</p></div>`;
   if(!night.min){night.min=defaultTime();store.set("kv-night",night)}
-  $("#nightTime").value=night.min;
+  showClock();
   renderPlanStatus();
   if(!SERVER){$("#nightTrains").innerHTML=`<p class="notice">Live trains and reminders need Backtrack's server, which isn't set up yet.</p>`;return}
   try{
     const{trains}=await api(`/trains?from=${encodeURIComponent(work)}&to=${encodeURIComponent(home)}&time=${encodeURIComponent(nightTimeToLocal(Number(night.min)))}`);
-    const list=trains.filter(t=>!t.canceled||true).slice(0,6);
+    const list=trains.slice(0,6);
     $("#nightTrains").innerHTML=list.length?list.map(t=>trainRow(t,true)).join(""):`<p class="small muted">No trains found around that time.</p>`;
   }catch(e){$("#nightTrains").innerHTML=`<p class="notice">Couldn't load trains. ${esc(e.message)}</p>`}
 }
+function showClock(){
+  const m=Number(night.min);$("#clockH").textContent=String(Math.floor(m/60)%24).padStart(2,"0");$("#clockM").textContent=String(m%60).padStart(2,"0");
+}
+let clockTimer=null;
+function moveClock(delta){
+  const o=timeOptions();let m=Number(night.min)+delta;
+  m=Math.max(o[0],Math.min(o[o.length-1],m));night.min=m;store.set("kv-night",night);showClock();
+  clearTimeout(clockTimer);clockTimer=setTimeout(renderNight,350);
+}
 function renderPlanStatus(){
   const el=$("#nightPlan");if(!el)return;
-  if(night&&night.plan)el.innerHTML=`<span class="status ok">Reminders on for the ${night.plan.sched.slice(11,16)} train</span> <span class="muted">· 60, 30 and 15 min before it leaves</span>`;
-  else el.innerHTML=`<span class="muted">Pick the train you want to catch.</span>`;
+  const p=(night&&night.plans)||[];
+  if(p.length)el.innerHTML=`<span class="status ok">Reminders on for ${p.map(x=>x.sched.slice(11,16)).sort().join(" and ")}</span> <span class="muted">· 60, 30 and 15 min before each leaves</span>`;
+  else el.innerHTML=`<span class="muted">Tap the trains you want to be reminded about. You can pick more than one.</span>`;
 }
 function trainRow(t,pickable){
   const dep=t.sched.slice(11,16),real=t.real.slice(11,16),late=t.delay>0;
-  const sel=pickable&&night&&night.plan&&night.plan.sched===t.sched&&night.plan.train===t.train;
+  const sel=pickable&&night&&(night.plans||[]).some(p=>p.sched===t.sched&&p.train===t.train);
   const time=late?`<s>${dep}</s>${real}`:dep;
   const tag=t.canceled?`<span class="tag c">Cancelled</span>`:late?`<span class="tag ${t.delay>=20?"l50":""}">+${t.delay} min</span>`:"";
   return`<div class="tr${sel?" sel":""}"><div class="t">${time}</div>
     <div class="info"><b>${esc(t.direction||"")}</b>${t.platform?` · track ${esc(t.platform)}`:""}${t.train?` · train ${esc(t.train)}`:""} ${tag}${(t.alerts||[]).slice(0,1).map(a=>`<span class="alertline">⚠ ${esc(a)}</span>`).join("")}</div>
-    ${pickable&&!t.canceled?`<button class="pick" type="button" data-plan="${esc(t.sched)}|${esc(t.train)}" aria-pressed="${sel}">${sel?"Reminders on":"Remind me"}</button>`:"<span></span>"}</div>`;
+    ${pickable&&!t.canceled?`<button class="pick" type="button" data-plan="${esc(t.sched)}|${esc(t.train)}" aria-pressed="${sel}">${sel?"Reminding ✓":"Remind me"}</button>`:"<span></span>"}</div>`;
+}
+async function togglePlan(sched,train){
+  const p=night.plans||[],i=p.findIndex(x=>x.sched===sched&&x.train===train);
+  const next=i>=0?p.filter((_,k)=>k!==i):p.concat([{sched,train}]);
+  return syncPlans(next);
+}
+async function syncPlans(next){
+  if(!push){$("#nightPlan").innerHTML=`<span class="notice" style="display:block">Turn on notifications first (Settings), then pick your trains again.</span>`;return}
+  const body=()=>JSON.stringify({id:push.id,trains:next,from:cfg.to,to:cfg.from,mins:[60,30,15]});
+  try{
+    try{await api("/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:body()})}
+    catch(err){await subscribe(push,true);await api("/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:body()})}
+    night.plans=next;store.set("kv-night",night);renderNight();
+  }catch(e){$("#nightPlan").innerHTML=`<span class="notice" style="display:block">Couldn't set reminders. ${esc(e.message)}</span>`}
 }
 async function setPlan(sched,train){
   if(!push){
@@ -485,14 +545,16 @@ function renderDelays(){
     const d=dObj(i.day),lv=i.chosen?level(i.chosen.eff):0;
     const st=i.chosen?(lv?`<span class="status ok">You took the ${fmt(i.chosen.dep)} · about ${kr(i.value)} kr</span>`:`<span class="status">You took the ${fmt(i.chosen.dep)} · under 20 min late</span>`)
       :`<span class="status muted">Which train did you take?</span>`;
-    const rows=i.win.map(j=>{const L=level(j.eff),on=i.chosen&&i.chosen.dep===j.dep;
+    const hidden=i.win.filter(j=>!level(j.eff)&&!(i.chosen&&i.chosen.dep===j.dep)).length,expanded=showOnTime.has(i.id);
+    const rows=i.win.filter(j=>level(j.eff)||(i.chosen&&i.chosen.dep===j.dep)||expanded).map(j=>{const L=level(j.eff),on=i.chosen&&i.chosen.dep===j.dep;
       return`<div class="tr${on?" sel":""}"><div class="t">${fmt(j.dep)}</div>
         <div class="info">arrived ${fmt(j.arr+j.eff)} ${j.cancelled?`<span class="tag c">Cancelled</span>`:L?`<span class="tag l${L}">+${j.eff} min</span>`:j.eff>0?`<span class="tag">+${j.eff} min</span>`:`<span class="tag">on time</span>`}</div>
         <button class="pick" type="button" data-took="${i.id}|${j.dep}" aria-pressed="${on}">${on?"I took this ✓":"I took this"}</button></div>`}).join("");
     const cl=i.chosen&&lv?`<div class="row" style="margin-top:8px"><button class="btn small" type="button" data-claimhelp="${i.id}">${openClaim===i.id?"Hide claim details":"Claim details"}</button>
       ${claimControls(i)}</div>${openClaim===i.id?claimPanel(i):""}`:"";
+    const more=hidden?`<button class="morelink" type="button" data-ontime="${i.id}">${expanded?"Hide trains that weren't late":`I took a train that wasn't late (${hidden})`}</button>`:"";
     return`<div class="day"><div class="dayhead"><b>${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]} · ${i.leg.name}</b>${st}</div>
-      <div class="trains">${rows}</div>${cl}</div>`}).join(""):`<p class="small muted">No delayed trains in your time windows in this period.</p>`;
+      <div class="trains">${rows}</div>${more}${cl}</div>`}).join(""):`<p class="small muted">No delayed trains in your time windows in this period.</p>`;
 }
 function claimControls(i){
   const c=claims[i.id];
@@ -576,10 +638,12 @@ document.addEventListener("click",async e=>{
   if(b.id==="nightYes"){night={date:localDate(),min:defaultTime()};store.set("kv-night",night);renderNight();return}
   if(b.id==="nightNo"){store.set("kv-night-skip",localDate());b.closest(".card").innerHTML=`<p class="small muted" style="margin:0">Okay. Have a good evening at home.</p>`;return}
   if(b.id==="nightOff"){store.set("kv-night-skip",localDate());if(push&&SERVER)api("/plan?id="+push.id,{method:"DELETE"}).catch(()=>{});night=null;store.set("kv-night",null);renderNight();return}
-  if(b.dataset.plan){const[s,t]=b.dataset.plan.split("|");setPlan(s,t);return}
+  if(b.dataset.plan){const[s,t]=b.dataset.plan.split("|");togglePlan(s,t);return}
+  if(b.dataset.clock){moveClock(Number(b.dataset.clock));return}
   if(b.dataset.p){period=b.dataset.p;renderDelays();return}
   if(b.id==="unlock"){unlocked=true;store.set("kv-unlocked",true);renderDelays();return}
   if(b.dataset.took){const[day,leg,dep]=b.dataset.took.split("|"),id=day+"|"+leg;took[id]===Number(dep)?delete took[id]:took[id]=Number(dep);store.set("kv-took",took);renderDelays();return}
+  if(b.dataset.ontime){const id=b.dataset.ontime;showOnTime.has(id)?showOnTime.delete(id):showOnTime.add(id);renderDelays();return}
   if(b.dataset.claimhelp){openClaim=openClaim===b.dataset.claimhelp?null:b.dataset.claimhelp;renderDelays();return}
   if(b.dataset.claimed){claims[b.dataset.claimed]={s:"sent",date:localDate()};store.set("kv-claims",claims);openClaim=null;renderDelays();return}
   if(b.dataset.paid){const[id,amt]=b.dataset.paid.split("|");claims[id]={s:"paid",amt:Number(amt),date:localDate()};store.set("kv-claims",claims);renderDelays();return}
@@ -588,7 +652,7 @@ document.addEventListener("click",async e=>{
   if(b.dataset.copy){const v=decodeURIComponent(b.dataset.copy);try{await navigator.clipboard.writeText(v);b.textContent="Copied ✓"}catch(_){b.textContent="Select it"}setTimeout(()=>b.textContent="Copy",1400);return}
   if(b.id==="notifOn"){try{await subscribe({},false);renderNotif();$("#notifMsg").textContent="Done. Try a test notification."}catch(err){$("#notifMsg").textContent="Couldn't turn on notifications: "+err.message}return}
   if(b.id==="notifDelete"){try{if(SERVER&&push)await api("/me?id="+push.id,{method:"DELETE"});const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub)await sub.unsubscribe();}catch(_){}
-    push=null;store.set("kv-push",null);if(night){night.plan=null;store.set("kv-night",night)}renderNotif();renderNight();$("#notifMsg").textContent="Notifications are off and your data has been deleted from Backtrack's server.";return}
+    push=null;store.set("kv-push",null);if(night){night.plans=[];store.set("kv-night",night)}renderNotif();renderNight();$("#notifMsg").textContent="Notifications are off and your data has been deleted from Backtrack's server.";return}
   if(b.id==="notifTest"){try{await api("/test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:push.id})});$("#notifMsg").textContent="Sent. It should arrive in a few seconds."}catch(err){$("#notifMsg").textContent="Couldn't send: "+err.message}return}
 });
 document.addEventListener("change",async e=>{
@@ -637,6 +701,7 @@ document.addEventListener("click",async e=>{
 window.addEventListener("appinstalled",()=>{$("#install").hidden=true});
 
 // ---------- start ----------
+setTimeout(()=>{const sp=$("#splash");if(sp)sp.remove()},800);
 // Updates: check for a new version whenever the app is opened or brought back, and reload once it's installed
 if("serviceWorker"in navigator){
   navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(reg=>{
