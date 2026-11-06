@@ -1,0 +1,15 @@
+name: Kvitt server check
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the server
+        run: |
+          S=https://kvitt.petter-kvitt.workers.dev
+          sleep 20
+          echo "--- vapid"; curl -s "$S/vapid" | head -c 120; echo
+          echo "--- trains home now"; curl -s "$S/trains?from=K%C3%B8benhavn%20H&to=Malm%C3%B6%20C" | head -c 900; echo
+          echo "--- trains to work"; curl -s "$S/trains?from=Malm%C3%B6%20C&to=K%C3%B8benhavn%20H" | head -c 500; echo
+          T=$(TZ=Europe/Stockholm date +%Y-%m-%dT23:30)
+          echo "--- trains around $T"; curl -s "$S/trains?from=K%C3%B8benhavn%20H&to=Malm%C3%B6%20C&time=$T" | head -c 900; echo
